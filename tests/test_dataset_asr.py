@@ -185,7 +185,7 @@ def main():
             }
         },
         'data': {
-            'root': "./hw4_data_subset",
+            'root': "./hw4_data_subset/hw4p2_data",
             'subset': 1.0,
             'batch_size': 8,
             'NUM_WORKERS': 2,
