@@ -152,10 +152,10 @@ def main():
             }
         },
         'data': {
-            'root': "./hw4_data_subset",
-            'train_partition': "text-for-LM/train-text",
-            'val_partition': "text-for-LM/val-text",
-            'test_partition': "text-for-LM/test-text",
+            'root': "./hw4_data_subset/hw4p1_data",
+            'train_partition': "train",
+            'val_partition': "valid",
+            'test_partition': "test",
             'subset': 1.0,
             'batch_size': 8,
             'NUM_WORKERS': 2

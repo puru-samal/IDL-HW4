@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 import random
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Literal
 from .masks import PadMask, CausalMask
 from .positional_encoding import PositionalEncoding
 from .decoder_layers import SelfAttentionDecoderLayer, CrossAttentionDecoderLayer
@@ -217,9 +217,8 @@ class EncoderDecoderTransformer(nn.Module):
     def __init__(
             self,
             input_dim: int,  
-            time_stride: int, 
-            feature_stride: int, 
-            lstm_layers: int, 
+            time_reduction: int, 
+            reduction_method: Literal['lstm', 'conv', 'both'], 
             num_encoder_layers: int,
             num_encoder_heads: int,
             d_ff_encoder: int, 
@@ -240,9 +239,8 @@ class EncoderDecoderTransformer(nn.Module):
 
         Args:
             input_dim: int, dimension of input speech features
-            time_stride: int, stride along time dimension
-            feature_stride: int, stride along feature dimension
-            lstm_layers: int, number of LSTM layers in speech embedding (default: 0)
+            time_reduction: int, stride along time dimension, the amount of reduction to apply to the time dimension
+            reduction_method: Literal['lstm', 'conv', 'both'], the source_embedding reduction method
             num_encoder_layers: int, number of encoder layers
             num_encoder_heads: int, number of encoder attention heads
             d_ff_encoder: int, feed-forward dimension for encoder
@@ -284,10 +282,9 @@ class EncoderDecoderTransformer(nn.Module):
         self.source_embedding = SpeechEmbedding(
             input_dim=input_dim,
             output_dim=d_model,
-            time_stride=time_stride,
-            feature_stride=feature_stride,
-            dropout=dropout,
-            lstm_layers=lstm_layers
+            time_reduction=time_reduction,
+            reduction_method=reduction_method,
+            dropout=dropout
         )
         self.target_embedding    = nn.Embedding(num_classes, d_model)
         self.positional_encoding = PositionalEncoding(d_model=d_model, max_len=max_len)
@@ -342,7 +339,7 @@ class EncoderDecoderTransformer(nn.Module):
         # TODO: Project to CTC logits
         ctc_logits = self.ctc_head(x_enc.permute(1, 0, 2))
 
-        return x_enc, pad_mask_src, running_att, {'log_probs': ctc_logits, 'lengths': source_lengths}
+        return x_enc, pad_mask_src, running_att, {'log_probs': ctc_logits, 'lengths': x_enc_lengths}
 
     def decode(
         self, 

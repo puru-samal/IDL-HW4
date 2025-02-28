@@ -23,9 +23,8 @@ def test_initialization(transformer):
     
     # Test parameters
     input_dim = 80
-    time_stride = 2
-    feature_stride = 2
-    lstm_layers = 1
+    time_reduction = 2
+    reduction_method = 'both'
     d_model = 16
     num_encoder_heads = 4
     num_decoder_heads = 4
@@ -39,9 +38,8 @@ def test_initialization(transformer):
     
     model = transformer(
         input_dim=input_dim,
-        time_stride=time_stride,
-        feature_stride=feature_stride,
-        lstm_layers=lstm_layers,
+        time_reduction=time_reduction,
+        reduction_method=reduction_method,
         num_encoder_layers=num_encoder_layers,
         num_encoder_heads=num_encoder_heads,
         d_ff_encoder=d_ff_encoder,
@@ -83,9 +81,8 @@ def test_forward_pass(transformer):
     input_seq_length = 100
     target_seq_length = 8
     input_dim = 80
-    time_stride = 2
-    feature_stride = 2
-    lstm_layers = 1
+    time_reduction = 2
+    reduction_method = 'both'
     d_model = 16
     num_encoder_heads = 4
     num_decoder_heads = 4
@@ -99,9 +96,8 @@ def test_forward_pass(transformer):
 
     model = transformer(
         input_dim=input_dim,
-        time_stride=time_stride,
-        feature_stride=feature_stride,
-        lstm_layers=lstm_layers,
+        time_reduction=time_reduction,
+        reduction_method=reduction_method,
         num_encoder_layers=num_encoder_layers,
         num_encoder_heads=num_encoder_heads,
         d_ff_encoder=d_ff_encoder,
@@ -162,9 +158,8 @@ def test_encoder_decoder_integration(transformer):
     
     model = transformer(
         input_dim=input_dim,
-        time_stride=2,
-        feature_stride=2,
-        lstm_layers=1,
+        time_reduction=2,
+        reduction_method='both',
         num_encoder_layers=2,
         num_encoder_heads=num_encoder_heads,
         d_ff_encoder=d_ff_encoder,
@@ -215,9 +210,8 @@ def test_ctc_integration(transformer):
     
     model = transformer(
         input_dim=input_dim,
-        time_stride=2,
-        feature_stride=2,
-        lstm_layers=1,
+        time_reduction=2,
+        reduction_method='both',
         num_encoder_layers=2,
         num_encoder_heads=4,
         d_ff_encoder=32,
@@ -264,9 +258,8 @@ def test_forward_propagation_order(transformer):
     
     model = transformer(
         input_dim=input_dim,
-        time_stride=2,
-        feature_stride=2,
-        lstm_layers=1,
+        time_reduction=2,
+        reduction_method='both',
         num_encoder_layers=2,
         num_encoder_heads=4,
         d_ff_encoder=32,
@@ -363,9 +356,8 @@ def test_encode_method(transformer):
     
     model = transformer(
         input_dim=input_dim,
-        time_stride=2,
-        feature_stride=2,
-        lstm_layers=1,
+        time_reduction=2,
+        reduction_method='both',
         num_encoder_layers=2,
         num_encoder_heads=4,
         d_ff_encoder=32,
@@ -429,9 +421,8 @@ def test_decode_method(transformer):
     
     model = transformer(
         input_dim=input_dim,
-        time_stride=2,
-        feature_stride=2,
-        lstm_layers=1,
+        time_reduction=2,
+        reduction_method='both',
         num_encoder_layers=2,
         num_encoder_heads=4,
         d_ff_encoder=32,

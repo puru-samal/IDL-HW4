@@ -18,12 +18,12 @@ class ASRTrainer(BaseTrainer):
         # Initialize CE loss
         self.ce_criterion = nn.CrossEntropyLoss(
             ignore_index=self.tokenizer.pad_id,
-            label_smoothing=self.config['training'].get('label_smoothing', 0.0)
+            label_smoothing=self.config['loss'].get('label_smoothing', 0.0)
         )
         
         # Initialize CTC loss if needed
         self.ctc_criterion = None
-        self.ctc_weight = self.config['training'].get('ctc_weight', 0.0)
+        self.ctc_weight = self.config['loss'].get('ctc_weight', 0.0)
         if self.ctc_weight > 0:
             self.ctc_criterion = nn.CTCLoss(
                 blank=self.tokenizer.pad_id,

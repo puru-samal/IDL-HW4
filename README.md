@@ -18,19 +18,20 @@ The handout contains the following key components:
 
 ```
 hw4_data_subset/
-├── dev-clean/
-│   ├── fbank/
-│   └── text/
-├── test-clean/
-│   ├── fbank/
-│   └── text/
-├── train-clean-100/
-│   ├── fbank/
-│   └── text/
-└── text-for-LM/
-    ├── train-text/
-    ├── valid-text/
-    └── test-text/
+├── hw4p1_data/
+│   ├── train/
+│   ├── valid/
+│   └── test/
+└── hw4p2_data/
+    ├── dev-clean/
+    │   ├── fbank/
+    │   └── text/
+    ├── test-clean/
+    │   ├── fbank/
+    │   └── text/
+    └── train-clean-100/
+        ├── fbank/
+        └── text/
 ```
 
 ## 🔧 Implementation Files
