@@ -27,8 +27,10 @@ def test_initialization(transformer):
     feature_stride = 2
     lstm_layers = 1
     d_model = 16
-    num_heads = 4
-    d_ff = 32
+    num_encoder_heads = 4
+    num_decoder_heads = 4
+    d_ff_encoder = 32
+    d_ff_decoder = 32
     dropout = 0.1
     max_len = 100
     num_classes = 10
@@ -41,10 +43,12 @@ def test_initialization(transformer):
         feature_stride=feature_stride,
         lstm_layers=lstm_layers,
         num_encoder_layers=num_encoder_layers,
+        num_encoder_heads=num_encoder_heads,
+        d_ff_encoder=d_ff_encoder,
         num_decoder_layers=num_decoder_layers,
+        num_decoder_heads=num_decoder_heads,
+        d_ff_decoder=d_ff_decoder,
         d_model=d_model,
-        num_heads=num_heads,
-        d_ff=d_ff,
         dropout=dropout,
         max_len=max_len,
         num_classes=num_classes
@@ -83,8 +87,10 @@ def test_forward_pass(transformer):
     feature_stride = 2
     lstm_layers = 1
     d_model = 16
-    num_heads = 4
-    d_ff = 32
+    num_encoder_heads = 4
+    num_decoder_heads = 4
+    d_ff_encoder = 32
+    d_ff_decoder = 32
     dropout = 0.0  # For deterministic testing
     max_len = 100
     num_classes = 10
@@ -97,10 +103,12 @@ def test_forward_pass(transformer):
         feature_stride=feature_stride,
         lstm_layers=lstm_layers,
         num_encoder_layers=num_encoder_layers,
+        num_encoder_heads=num_encoder_heads,
+        d_ff_encoder=d_ff_encoder,
         num_decoder_layers=num_decoder_layers,
+        num_decoder_heads=num_decoder_heads,
+        d_ff_decoder=d_ff_decoder,
         d_model=d_model,
-        num_heads=num_heads,
-        d_ff=d_ff,
         dropout=dropout,
         max_len=max_len,
         num_classes=num_classes
@@ -144,8 +152,10 @@ def test_encoder_decoder_integration(transformer):
     target_seq_length = 8
     input_dim = 80
     d_model = 16
-    num_heads = 4
-    d_ff = 32
+    num_encoder_heads = 4
+    num_decoder_heads = 4
+    d_ff_encoder = 32
+    d_ff_decoder = 32
     dropout = 0.0
     max_len = 100
     num_classes = 10
@@ -156,10 +166,12 @@ def test_encoder_decoder_integration(transformer):
         feature_stride=2,
         lstm_layers=1,
         num_encoder_layers=2,
+        num_encoder_heads=num_encoder_heads,
+        d_ff_encoder=d_ff_encoder,
         num_decoder_layers=2,
+        num_decoder_heads=num_decoder_heads,
+        d_ff_decoder=d_ff_decoder,
         d_model=d_model,
-        num_heads=num_heads,
-        d_ff=d_ff,
         dropout=dropout,
         max_len=max_len,
         num_classes=num_classes
@@ -180,7 +192,7 @@ def test_encoder_decoder_integration(transformer):
     
     # Outputs should be different for different inputs
     assert not torch.allclose(output1, output2), "Different inputs should produce different outputs"
-    assert not torch.allclose(ctc1, ctc2), "Different inputs should produce different CTC outputs"
+    assert not torch.allclose(ctc1['log_probs'], ctc2['log_probs']), "Different inputs should produce different CTC outputs"
     
     # Cross-attention patterns should be different
     for i in range(model.num_decoder_layers):
@@ -207,10 +219,12 @@ def test_ctc_integration(transformer):
         feature_stride=2,
         lstm_layers=1,
         num_encoder_layers=2,
+        num_encoder_heads=4,
+        d_ff_encoder=32,
         num_decoder_layers=2,
+        num_decoder_heads=4,
+        d_ff_decoder=32,
         d_model=16,
-        num_heads=4,
-        d_ff=32,
         dropout=0.0,
         max_len=100,
         num_classes=10
@@ -223,14 +237,14 @@ def test_ctc_integration(transformer):
     target_lengths = torch.ones(batch_size, dtype=torch.int32) * target_seq_length
     
     # Forward pass
-    _, _, ctc_output = model(source, targets, source_lengths, target_lengths)
+    _, _, ctc_input = model(source, targets, source_lengths, target_lengths)
     
     # Check CTC output properties
-    assert ctc_output.dim() == 3, "CTC output should be 3-dimensional"
-    assert ctc_output.shape[2] == model.num_classes, "CTC output should have num_classes as last dimension"
+    assert ctc_input['log_probs'].dim() == 3, "CTC output should be 3-dimensional"
+    assert ctc_input['log_probs'].shape[2] == model.num_classes, "CTC output should have num_classes as last dimension"
     
     # Test that LogSoftmax has been applied to the output
-    ctc_probs = torch.exp(ctc_output)
+    ctc_probs = torch.exp(ctc_input['log_probs'])
     assert torch.allclose(ctc_probs.sum(dim=-1), torch.ones_like(ctc_probs.sum(dim=-1))), \
         "CTC probabilities should sum to 1"
     
@@ -254,10 +268,12 @@ def test_forward_propagation_order(transformer):
         feature_stride=2,
         lstm_layers=1,
         num_encoder_layers=2,
+        num_encoder_heads=4,
+        d_ff_encoder=32,
         num_decoder_layers=2,
+        num_decoder_heads=4,
+        d_ff_decoder=32,
         d_model=16,
-        num_heads=4,
-        d_ff=32,
         dropout=0.0,
         max_len=100,
         num_classes=10
@@ -351,10 +367,12 @@ def test_encode_method(transformer):
         feature_stride=2,
         lstm_layers=1,
         num_encoder_layers=2,
+        num_encoder_heads=4,
+        d_ff_encoder=32,
         num_decoder_layers=2,
+        num_decoder_heads=4,
+        d_ff_decoder=32,
         d_model=d_model,
-        num_heads=4,
-        d_ff=32,
         dropout=0.0,
         max_len=100,
         num_classes=10
@@ -365,7 +383,7 @@ def test_encode_method(transformer):
     source_lengths =  torch.randint(input_seq_length // 2, input_seq_length, (batch_size,))
     
     # Test encode method
-    encoder_output, pad_mask_src, encoder_attention, ctc_output = model.encode(source, source_lengths)
+    encoder_output, pad_mask_src, encoder_attention, ctc_input = model.encode(source, source_lengths)
     
     # Calculate expected encoder output length
     expected_enc_length = model.source_embedding.calculate_downsampled_length(torch.ones(batch_size, dtype=torch.int32) * input_seq_length)
@@ -379,8 +397,8 @@ def test_encode_method(transformer):
         PadMask(encoder_output, model.source_embedding.calculate_downsampled_length(source_lengths))
     ), "Pad mask source mismatch"
 
-    assert ctc_output.shape == (expected_enc_length, batch_size, model.num_classes), \
-        f"CTC output shape mismatch: expected {(expected_enc_length, batch_size, model.num_classes)}, got {ctc_output.shape}"
+    assert ctc_input['log_probs'].shape == (expected_enc_length, batch_size, model.num_classes), \
+        f"CTC output shape mismatch: expected {(expected_enc_length, batch_size, model.num_classes)}, got {ctc_input['log_probs'].shape}"
     
     # Check encoder attention weights
     for i in range(model.num_encoder_layers):
@@ -390,7 +408,7 @@ def test_encode_method(transformer):
             f"Encoder attention weights shape mismatch for {attn_key}"
     
     # Test that LogSoftmax has been applied to the output
-    ctc_probs = torch.exp(ctc_output)
+    ctc_probs = torch.exp(ctc_input['log_probs'])
     assert torch.allclose(ctc_probs.sum(dim=-1), torch.ones_like(ctc_probs.sum(dim=-1))), \
         "CTC probabilities should sum to 1"
     
@@ -415,10 +433,12 @@ def test_decode_method(transformer):
         feature_stride=2,
         lstm_layers=1,
         num_encoder_layers=2,
+        num_encoder_heads=4,
+        d_ff_encoder=32,
         num_decoder_layers=2,
+        num_decoder_heads=4,
+        d_ff_decoder=32,
         d_model=d_model,
-        num_heads=4,
-        d_ff=32,
         dropout=0.0,
         max_len=100,
         num_classes=10

@@ -195,7 +195,6 @@ class SpeechEmbedding(nn.Module):
         # Apply BiLSTM if it exists
         if self.blstm is not None:
             x, x_len = self.blstm(x, x_len)
-
         return x, x_len
     
     def calculate_downsampled_length(self, lengths: torch.Tensor) -> torch.Tensor:

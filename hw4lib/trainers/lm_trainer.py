@@ -214,13 +214,14 @@ class LMTrainer(BaseTrainer):
         }, attn_weights
         
 
-    def train(self, train_dataloader, val_dataloader):
+    def train(self, train_dataloader, val_dataloader, epochs: Optional[int] = None):
         """
         Full training loop for language model training.
         
         Args:
             train_dataloader: DataLoader for training data
             val_dataloader: DataLoader for validation data
+            epochs: Optional[int], number of epochs to train
         """
         # Initialize learning rate scheduler if not already done
         if self.scheduler is None:
@@ -233,7 +234,11 @@ class LMTrainer(BaseTrainer):
         # Training loop
         best_val_loss = float('inf')
 
-        for epoch in range(self.current_epoch, self.config['training']['epochs']):
+        if epochs is None:
+            # Find from config
+            epochs = self.config['training']['epochs']
+
+        for epoch in range(self.current_epoch, epochs):
             self.current_epoch = epoch
             
             # TODO: Train for one epoch
@@ -404,7 +409,7 @@ class LMTrainer(BaseTrainer):
         # - score: the score of the generated sequence
         # NOTE: You might find the H4Tokenizer class useful here
         results = []
-        for i, (prompt, seq, score, original) in enumerate(zip(prompts, processed_seqs, scores, originals)):
+        for _, (prompt, seq, score, original) in enumerate(zip(prompts, processed_seqs, scores, originals)):
             results.append({
                 'prompt': self.tokenizer.decode(prompt.tolist()),
                 'original': self.tokenizer.decode(original[len(prompt):].tolist()),

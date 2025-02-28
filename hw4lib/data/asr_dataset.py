@@ -217,13 +217,12 @@ class ASRDataset(Dataset):
                 # TODO: Create shifted and golden versions by adding sos and eos tokens   
                 self.transcripts_shifted.append([self.sos_token] + tokenized)
                 self.transcripts_golden.append(tokenized + [self.eos_token])
-        
 
+        # Calculate average characters per token
+        # DO NOT MODIFY 
+        self.avg_chars_per_token = self.total_chars / self.total_tokens if self.total_tokens > 0 else 0
+        
         if self.partition != "test-clean":
-            # Calculate average characters per token
-            # DO NOT MODIFY 
-            self.avg_chars_per_token = self.total_chars / self.total_tokens if self.total_tokens > 0 else 0
-            
             # Verify data alignment
             if not (len(self.feats) == len(self.transcripts_shifted) == len(self.transcripts_golden)):
                 raise ValueError("Features and transcripts are misaligned")

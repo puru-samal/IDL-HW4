@@ -7,7 +7,7 @@ import seaborn as sns
 import torch.nn as nn
 from hw4lib.data.tokenizer import H4Tokenizer
 from hw4lib.utils import create_optimizer
-from hw4lib.model import DecoderOnlyTransformer
+from hw4lib.model import DecoderOnlyTransformer, EncoderDecoderTransformer
 import os
 import shutil
 from abc import ABC, abstractmethod
@@ -144,21 +144,40 @@ class BaseTrainer(ABC):
             # Get a sample input shape from your model's expected input
             if isinstance(self.model, DecoderOnlyTransformer):
                 batch_size = self.config['data'].get('batch_size', 8)
-                max_len = self.model.max_len
+                max_len    = self.model.max_len
                 input_size = [(batch_size, max_len), (batch_size,)]
-                dtypes = [torch.long, torch.long]
+                dtypes     = [torch.long, torch.long]
+                # Generate the summary
+                model_summary = summary(
+                    self.model,
+                    input_size=input_size,  # Adjust these dimensions based on your model's input
+                    dtypes=dtypes
+                )
+                # Write the summary string to file
+                f.write(str(model_summary))
+            elif isinstance(self.model, EncoderDecoderTransformer):
+                batch_size = self.config['data'].get('batch_size', 8)
+                max_len = 1000
+                num_feats = self.config['data']['num_feats']
+                input_data = [
+                    torch.randn(batch_size, max_len, num_feats), 
+                    torch.randint(0, 100, (batch_size, max_len//10)), 
+                    torch.randint(1, max_len, (batch_size,)), 
+                    torch.randint(1, max_len//10, (batch_size,))
+                ]
+                dtypes = [torch.float32, torch.long, torch.long, torch.long]
+                # Generate the summary
+                model_summary = summary(
+                    self.model,
+                    input_data=input_data,  # Adjust these dimensions based on your model's input
+                    dtypes=dtypes
+                )
+                # Write the summary string to file
+                f.write(str(model_summary))
             else:
-                raise ValueError("Model is not a DecoderOnlyTransformer")
+                raise NotImplementedError("Model architecture summary not implemented")
 
-            # Generate the summary
-            model_summary = summary(
-                self.model,
-                input_size=input_size,  # Adjust these dimensions based on your model's input
-                dtypes=dtypes
-            )
             
-            # Write the summary string to file
-            f.write(str(model_summary))
 
         # Create subdirectories
         checkpoint_dir = expt_root / 'checkpoints'
