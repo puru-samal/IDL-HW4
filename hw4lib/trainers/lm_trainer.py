@@ -91,9 +91,14 @@ class LMTrainer(BaseTrainer):
                 raw_loss = self.criterion(raw_preds.view(-1, raw_preds.size(-1)), 
                                       targets_golden.view(-1))
                 
-                # Normalize loss by accumulation steps
-                loss = raw_loss / self.config['training']['gradient_accumulation_steps']
+            # Calculate metrics with raw loss
+            batch_tokens = lengths.sum().item()
+            total_tokens += batch_tokens
+            running_ce_loss += raw_loss.item() * batch_tokens
 
+            # Normalize loss for gradient accumulation
+            loss = raw_loss / self.config['training']['gradient_accumulation_steps']
+            
             # TODO: Backpropagate the loss
             self.scaler.scale(loss).backward()
 
@@ -107,11 +112,6 @@ class LMTrainer(BaseTrainer):
                 self.optimizer.zero_grad()  # Reset gradients after update
 
             # Calculate metrics
-            batch_tokens = lengths.sum().item()
-            total_tokens += batch_tokens
-            running_ce_loss += loss.item() * batch_tokens
-
-            # Update the progress bar
             avg_ce_loss = running_ce_loss / total_tokens
             perplexity_token = torch.exp(torch.tensor(avg_ce_loss))
             batch_bar.set_postfix(

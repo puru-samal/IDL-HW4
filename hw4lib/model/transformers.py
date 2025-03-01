@@ -96,7 +96,7 @@ class DecoderOnlyTransformer(nn.Module):
         self.norm                   = nn.LayerNorm(d_model)
 
         # TODO: Initialize weights
-        self.initialize_weights()
+        #self.initialize_weights()
 
         # TODO: Weight tying
         if weight_tying:
