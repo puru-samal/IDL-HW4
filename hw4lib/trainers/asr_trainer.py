@@ -87,8 +87,16 @@ class ASRTrainer(BaseTrainer):
                     ctc_loss = torch.tensor(0.0)
                     loss = ce_loss
 
-                # Normalize loss by accumulation steps
-                loss = loss / self.config['training']['gradient_accumulation_steps']
+            # Calculate metrics
+            batch_tokens = transcript_lengths.sum().item()
+            total_tokens += batch_tokens
+            running_ce_loss += ce_loss.item() * batch_tokens
+            if self.ctc_weight > 0:
+                running_ctc_loss += ctc_loss.item() * batch_tokens
+            running_joint_loss += loss.item() * batch_tokens
+            
+            # Normalize loss by accumulation steps
+            loss = loss / self.config['training']['gradient_accumulation_steps']
 
             # TODO: Backpropagate the loss
             self.scaler.scale(loss).backward()
@@ -100,14 +108,6 @@ class ASRTrainer(BaseTrainer):
                     self.scheduler.step()
                 self.scaler.update()
                 self.optimizer.zero_grad()
-
-            # Calculate metrics
-            batch_tokens = transcript_lengths.sum().item()
-            total_tokens += batch_tokens
-            running_ce_loss += ce_loss.item() * batch_tokens
-            if self.ctc_weight > 0:
-                running_ctc_loss += ctc_loss.item() * batch_tokens
-            running_joint_loss += loss.item() * batch_tokens
 
             # Update progress bar
             avg_ce_loss = running_ce_loss / total_tokens
@@ -308,7 +308,7 @@ class ASRTrainer(BaseTrainer):
         if recognition_config is None:
             # Default config (greedy search)
             recognition_config = {
-                'num_batches': None,
+                'num_batches': 5,
                 'beam_width': 1,
                 'temperature': 1.0,
                 'repeat_penalty': 1.0,
