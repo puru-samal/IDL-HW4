@@ -8,6 +8,7 @@ from .decoder_layers import SelfAttentionDecoderLayer, CrossAttentionDecoderLaye
 from .encoder_layers import SelfAttentionEncoderLayer
 from .speech_embedding import SpeechEmbedding
 import warnings
+from torchinfo import summary
 '''
 TODO: Implement these Modules.
 
@@ -647,3 +648,25 @@ def setup_asr_model(config):
     
     return model, optimizer
 
+
+def get_decoder_only_inputs(max_len: int = 300, num_classes: int = 10000):
+    batch_size = 8
+    padded_targets = torch.randint(0, num_classes, (batch_size, max_len))
+    source_lengths = torch.ones(batch_size) * max_len
+    return padded_targets, source_lengths
+
+
+def get_encoder_decoder_inputs(max_len: int = 300, num_classes: int = 10000):
+    batch_size = 8
+    padded_targets = torch.randint(0, num_classes, (batch_size, max_len))
+    source_lengths = torch.ones(batch_size) * max_len
+    return padded_targets, source_lengths
+
+
+def test_decoder_only(num_layers: int = 12, num_heads: int = 8, d_model: int = 512, d_ff: int = 2048, dropout: float = 0.1, max_len: int = 300, num_classes: int = 1000):
+    padded_targets, target_lengths = get_decoder_only_inputs(max_len, num_classes)
+    model = DecoderOnlyTransformer(num_layers, d_model, num_heads, d_ff, dropout, max_len, num_classes)
+    summary(model, input_data=[padded_targets, target_lengths])
+
+if __name__ == "__main__":
+    test_decoder_only()
