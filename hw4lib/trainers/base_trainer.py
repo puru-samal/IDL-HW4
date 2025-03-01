@@ -160,10 +160,10 @@ class BaseTrainer(ABC):
                 max_len = 1000
                 num_feats = self.config['data']['num_feats']
                 input_data = [
-                    torch.randn(batch_size, max_len, num_feats), 
-                    torch.randint(0, 100, (batch_size, max_len//10)), 
-                    torch.randint(1, max_len, (batch_size,)), 
-                    torch.randint(1, max_len//10, (batch_size,))
+                    torch.randn(batch_size, max_len, num_feats).to(self.device), 
+                    torch.randint(0, 100, (batch_size, max_len//10)).to(self.device), 
+                    torch.randint(1, max_len, (batch_size,)).to(self.device), 
+                    torch.randint(1, max_len//10, (batch_size,)).to(self.device)
                 ]
                 dtypes = [torch.float32, torch.long, torch.long, torch.long]
                 # Generate the summary
