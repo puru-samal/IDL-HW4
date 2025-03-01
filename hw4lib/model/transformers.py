@@ -476,46 +476,47 @@ class EncoderDecoderTransformer(nn.Module):
             model: Initialized encoder-decoder transformer
             param_groups: List of parameter groups for optimizer
         """
+        print("\n=== Initializing Encoder-Decoder from Pretrained Decoder ===")
+        print(f"Loading checkpoint from: {decoder_checkpoint_path}")
+        print(f"Freeze transferred parameters: {freeze_transferred}")
+        
         # Create new encoder-decoder model
-        model = cls(
-            input_dim=config['input_dim'],
-            time_stride=config['time_stride'],
-            feature_stride=config['feature_stride'],
-            lstm_layers=config['lstm_layers'],
-            num_encoder_layers=config['num_encoder_layers'],
-            num_decoder_layers=config['num_decoder_layers'],
-            d_model=config['d_model'],
-            num_heads=config['num_heads'],
-            d_ff=config['d_ff'],
-            dropout=config['dropout'],
-            max_len=config['max_len'],
-            num_classes=config['num_classes'],
-            weight_tying=config.get('weight_tying', False),
-            layer_drop_rate=config.get('layer_drop_rate', 0.0)
-        )
+        print("\nCreating new encoder-decoder model...")
+        model = cls(**config)
 
         # Load decoder checkpoint
+        print("Loading pretrained decoder weights...")
         checkpoint = torch.load(decoder_checkpoint_path, map_location='cpu')
         decoder_state_dict = checkpoint['model_state_dict']
         
         # Track parameters for optimizer groups
         transferred_params = []
         new_params = []
+        frozen_count = 0
+        transferred_count = 0
         
         def transfer_module_weights(target_module, prefix):
+            nonlocal frozen_count, transferred_count
             module_state_dict = {
                 k.replace(prefix, ''): v 
                 for k, v in decoder_state_dict.items()
                 if k.startswith(prefix)
             }
+            param_count = sum(p.numel() for p in target_module.parameters())
+            print(f"  - Transferring {prefix} ({param_count:,} parameters)")
             target_module.load_state_dict(module_state_dict)
             if freeze_transferred:
                 for param in target_module.parameters():
                     param.requires_grad = False
+                frozen_count += param_count
+                print(f"    → Parameters frozen ({param_count:,} parameters)")
             else:
                 transferred_params.extend(target_module.parameters())
+                transferred_count += param_count
+                print(f"    → Parameters added to transfer group ({param_count:,} parameters)")
 
         # Transfer shared components
+        print("\nTransferring shared components:")
         transfer_module_weights(model.target_embedding, 'target_embedding.')
         transfer_module_weights(model.final_linear, 'final_linear.')
         transfer_module_weights(model.decoder_norm, 'norm.')
@@ -525,8 +526,10 @@ class EncoderDecoderTransformer(nn.Module):
             len([k for k in decoder_state_dict.keys() if k.startswith('dec_layers.')]) // 2,
             model.num_decoder_layers
         )
+        print(f"\nTransferring decoder layers (found {num_layers} layers):")
         
         for i in range(num_layers):
+            print(f"\nLayer {i + 1}/{num_layers}:")
             transfer_module_weights(
                 model.dec_layers[i].self_attn,
                 f'dec_layers.{i}.self_attn.'
@@ -537,6 +540,7 @@ class EncoderDecoderTransformer(nn.Module):
             )
         
         # Collect new parameters
+        print("\nCollecting new parameters...")
         for name, param in model.named_parameters():
             if param.requires_grad:
                 is_new = True
@@ -548,6 +552,7 @@ class EncoderDecoderTransformer(nn.Module):
                     new_params.append(param)
         
         # Create parameter groups
+        print("\nCreating parameter groups:")
         param_groups = []
         if new_params:
             param_groups.append({
@@ -555,6 +560,7 @@ class EncoderDecoderTransformer(nn.Module):
                 'lr_factor': 1.0,
                 'name': 'new_params'
             })
+            print(f"  - New parameters group: {len(new_params)} parameters")
         
         if not freeze_transferred and transferred_params:
             param_groups.append({
@@ -562,7 +568,20 @@ class EncoderDecoderTransformer(nn.Module):
                 'lr_factor': decoder_lr_factor,
                 'name': 'transferred_params'
             })
+            print(f"  - Transferred parameters group: {len(transferred_params)} parameters")
+            print(f"  - Learning rate factor for transferred parameters: {decoder_lr_factor}")
         
+        # Print freezing summary
+        print("\nFreezing Summary:")
+        print(f"  - Frozen parameters: {frozen_count:,}")
+        print(f"  - Transferred (trainable) parameters: {transferred_count:,}")
+        total_params = sum(p.numel() for p in model.parameters())
+        print(f"  - Total model parameters: {total_params:,}")
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"  - Total trainable parameters: {trainable_params:,}")
+        print(f"  - Percentage frozen: {(frozen_count/total_params)*100:.2f}%")
+        
+        print("\n=== Initialization Complete ===")
         return model, param_groups
 
     def log_param_groups(self, param_groups: list) -> None:

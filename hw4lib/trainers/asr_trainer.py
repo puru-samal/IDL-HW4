@@ -191,6 +191,9 @@ class ASRTrainer(BaseTrainer):
                 train_dataloader
             )
 
+        # TODO: Set max transcript length
+        self.text_max_len = max(val_dataloader.dataset.text_max_len, train_dataloader.dataset.text_max_len)
+
         # Training loop
         best_val_loss = float('inf')
         best_val_wer  = float('inf')
@@ -287,12 +290,13 @@ class ASRTrainer(BaseTrainer):
         
         return eval_results
 
-    def recognize(self, dataloader, recognition_config: Optional[Dict[str, Any]] = None, config_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def recognize(self, dataloader, max_len: int = 300, recognition_config: Optional[Dict[str, Any]] = None, config_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Evaluate the model by generating transcriptions from audio features.
         
         Args:
             dataloader: DataLoader containing the evaluation data
+            max_len: Maximum length of the generated sequence
             recognition_config: Optional dictionary containing recognition parameters:
                 - num_batches: int, number of batches to process
                 - beam_width: int, beam search width
@@ -304,6 +308,9 @@ class ASRTrainer(BaseTrainer):
             List of dictionaries containing recognition results with generated sequences and scores
             (targets included if available)
         """
+        if self.text_max_len is None:
+            raise ValueError("text_max_len is not set. Please run training loop first to set the max transcript length")
+
         if recognition_config is None:
             # Default config (greedy search)
             recognition_config = {
@@ -324,7 +331,7 @@ class ASRTrainer(BaseTrainer):
         generator = SequenceGenerator(
             score_fn=None,  # Will be set for each batch
             tokenizer=self.tokenizer,
-            max_length=self.model.max_len,
+            max_length=self.text_max_len,
             device=self.device
         )
 
