@@ -261,7 +261,7 @@ class EncoderDecoderTransformer(nn.Module):
         )
 
         # TODO: Initialize weights
-        #self.initialize_weights()
+        self.initialize_weights()
 
         # TODO: Weight tying if enabled
         if weight_tying:
