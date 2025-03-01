@@ -94,6 +94,7 @@ class BaseTrainer(ABC):
         self.optimizer = create_optimizer(model, config['optimizer'])  # Should be set by child class
         self.scheduler = None  # Will be set when training starts
         self.scaler = torch.amp.GradScaler(device=self.device)
+        self.use_wandb = config['training'].get('use_wandb', False)
         # Initialize experiment directories
         self.expt_root, self.checkpoint_dir, self.attn_dir, self.text_dir, \
         self.best_model_path, self.last_model_path = self._init_experiment(run_name, config_file)
@@ -185,8 +186,7 @@ class BaseTrainer(ABC):
         last_model_path = checkpoint_dir / 'checkpoint-last-epoch-model.pth'
 
         # Wandb initialization
-        use_wandb = self.config['training'].get('use_wandb', False)
-        if use_wandb:
+        if self.use_wandb:
             """Initialize Weights & Biases logging."""
             run_id = self.config['training'].get('wandb_run_id', None)
             if run_id and run_id.lower() != "none":
@@ -199,7 +199,8 @@ class BaseTrainer(ABC):
             else:
                 self.wandb_run = wandb.init(
                     project=self.config['training'].get('wandb_project', 'default-project'),
-                    config=self.config
+                    config=self.config,
+                    name=run_name
                 )
 
         return expt_root, checkpoint_dir, attn_dir, text_dir, best_model_path, last_model_path
