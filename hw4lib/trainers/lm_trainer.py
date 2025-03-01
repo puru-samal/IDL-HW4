@@ -109,7 +109,7 @@ class LMTrainer(BaseTrainer):
             # Calculate metrics
             batch_tokens = lengths.sum().item()
             total_tokens += batch_tokens
-            running_ce_loss += (loss.item() * self.config['training']['gradient_accumulation_steps']) * batch_tokens
+            running_ce_loss += loss.item() * batch_tokens
 
             # Update the progress bar
             avg_ce_loss = running_ce_loss / total_tokens
@@ -184,7 +184,7 @@ class LMTrainer(BaseTrainer):
             # Calculate metrics
             batch_tokens = lengths.sum().item()
             total_tokens += batch_tokens
-            running_ce_loss += (loss.item() * self.config['training']['gradient_accumulation_steps']) * batch_tokens
+            running_ce_loss += loss.item() * batch_tokens
 
             # Update the progress bar
             avg_ce_loss = running_ce_loss / total_tokens
