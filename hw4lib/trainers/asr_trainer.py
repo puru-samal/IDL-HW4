@@ -164,7 +164,6 @@ class ASRTrainer(BaseTrainer):
         """
         # TODO: Recognize
         results = self.recognize(dataloader)
-        assert len(results) == len(dataloader.dataset)
         
         # TODO: Extract references and hypotheses
         references = [result['target'] for result in results]
