@@ -5,12 +5,13 @@ import torch.nn as nn
 from tqdm import tqdm
 import torch.nn.functional as F
 from ..decoding.sequence_generator import SequenceGenerator
-from ..utils import create_scheduler
+from ..utils import create_scheduler, create_optimizer
 from ..model import DecoderOnlyTransformer
 import torchaudio.functional as aF
 import json
 import torchmetrics.text as tmt
 from torch.utils.data import Subset
+
 
 class ASRTrainer(BaseTrainer):
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
@@ -490,92 +491,10 @@ class ProgressiveTrainer(ASRTrainer):
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
         super().__init__(model, tokenizer, config, run_name, config_file, device)
         self.current_stage = 0
-        self.stages = [
-            {
-                'name': 'Initial (2 layers)',
-                'epochs': 5,
-                'encoder_active_layers': [0, 5],  # layers 1 and 6
-                'decoder_active_layers': [0, 5],  # layers 1 and 6
-                'time_reduction': 8,
-                'dropout': 0.0,
-                'label_smoothing': 0.0,
-                'data_subset': 0.25
-            },
-            {
-                'name': 'Enable dropout',
-                'epochs': 5,
-                'encoder_active_layers': [0, 5],
-                'decoder_active_layers': [0, 5],
-                'time_reduction': 8,
-                'dropout': 0.1,
-                'label_smoothing': 0.0,
-                'data_subset': 0.25
-            },
-            {
-                'name': '3 layers',
-                'epochs': 5,
-                'encoder_active_layers': [0, 1, 5],
-                'decoder_active_layers': [0, 1, 5],
-                'time_reduction': 8,
-                'dropout': 0.1,
-                'label_smoothing': 0.0,
-                'data_subset': 0.25
-            },
-            {
-                'name': '4 layers',
-                'epochs': 5,
-                'encoder_active_layers': [0, 1, 2, 5],
-                'decoder_active_layers': [0, 1, 2, 5],
-                'time_reduction': 8,
-                'dropout': 0.1,
-                'label_smoothing': 0.0,
-                'data_subset': 0.25
-            },
-            {
-                'name': '5 layers',
-                'epochs': 5,
-                'encoder_active_layers': [0, 1, 2, 3, 5],
-                'decoder_active_layers': [0, 1, 2, 3, 5],
-                'time_reduction': 8,
-                'dropout': 0.1,
-                'label_smoothing': 0.0,
-                'data_subset': 0.25
-            },
-            {
-                'name': 'All 6 layers',
-                'epochs': 5,
-                'encoder_active_layers': list(range(6)),
-                'decoder_active_layers': list(range(6)),
-                'time_reduction': 8,
-                'dropout': 0.1,
-                'label_smoothing': 0.0,
-                'data_subset': 0.25
-            },
-            {
-                'name': 'Reduce time stride',
-                'epochs': 5,
-                'encoder_active_layers': list(range(6)),
-                'decoder_active_layers': list(range(6)),
-                'time_reduction': 2,
-                'dropout': 0.1,
-                'label_smoothing': 0.0,
-                'data_subset': 0.25
-            },
-            {
-                'name': 'Final (with label smoothing)',
-                'epochs': 5,
-                'encoder_active_layers': list(range(6)),
-                'decoder_active_layers': list(range(6)),
-                'time_reduction': 2,
-                'dropout': 0.1,
-                'label_smoothing': 0.1,
-                'data_subset': 0.25
-            }
-        ]
-        
         # Store original layer states
         self.all_encoder_layers = list(self.model.enc_layers)
         self.all_decoder_layers = list(self.model.dec_layers)
+
 
     def configure_stage(self, stage_config):
         """Configure model for current training stage"""
@@ -607,7 +526,7 @@ class ProgressiveTrainer(ASRTrainer):
         ])
         self.model.num_decoder_layers = len(decoder_active_layers)
 
-    def progressive_train(self, train_dataloader, val_dataloader):
+    def progressive_train(self, train_dataloader, val_dataloader, stages: List[Dict[str, Any]]):
         """Progressive training through stages"""
         # Setup warmup scheduler
         warmup_epochs = 10
@@ -622,17 +541,37 @@ class ProgressiveTrainer(ASRTrainer):
         }
         
         # Train through stages
-        for stage_idx, stage_config in enumerate(self.stages):
+        for stage_idx, stage_config in enumerate(stages):
             self.current_stage = stage_idx
             self.configure_stage(stage_config)
             # Get subset of train_dataloader
             train_dataloader = self.get_subset_dataloader(train_dataloader, stage_config['data_subset'])
             super().train(train_dataloader, val_dataloader, epochs=stage_config['epochs'])
 
-    def full_train(self, train_dataloader, val_dataloader, epochs):
+
+    def transition_to_full_training(self):
+        """Transition from progressive training to full training"""
+        print("\n=== Transitioning to Full Training ===")
+        
+        # Restore all layers
+        self.model.enc_layers = nn.ModuleList(self.all_encoder_layers)
+        self.model.dec_layers = nn.ModuleList(self.all_decoder_layers)
+        self.model.num_encoder_layers = len(self.all_encoder_layers)
+        self.model.num_decoder_layers = len(self.all_decoder_layers)
+        
+        # Reset optimizer and scheduler
+        self.optimizer = create_optimizer(self.model, self.config['optimizer'])
+        self.scheduler = None  # Will be recreated in train()
+        
+        # Reset best metrics for new training phase
+        self.best_metric = float('inf')
+
+    
+    def train(self, train_dataloader, val_dataloader, epochs):
         """Run full training phase"""
         self.transition_to_full_training()
         super().train(train_dataloader, val_dataloader, epochs=epochs)
+
 
     def get_subset_dataloader(self, dataloader, subset_fraction):
         """

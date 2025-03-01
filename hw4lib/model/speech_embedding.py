@@ -198,8 +198,8 @@ class Conv2DSubsampling(torch.nn.Module):
 
         linear_in_dim = self.calculate_downsampled_length(input_dim, 1, 1)
         linear_in_dim *= output_dim
-        # Replace the Linear layer with adaptive pooling
-        #self.freq_pool = torch.nn.AdaptiveAvgPool2d((None, 1))  # Pool across frequency only
+        # TODO: Replace the Linear layer with adaptive pooling and test the performance
+        # self.freq_pool = torch.nn.AdaptiveAvgPool2d((None, 1))  # Pool across frequency only
         self.linear_out = torch.nn.Linear(linear_in_dim, output_dim)
         self.dropout = torch.nn.Dropout(dropout)
 
@@ -214,9 +214,11 @@ class Conv2DSubsampling(torch.nn.Module):
         """
         x = x.unsqueeze(1)  # Add a channel dimension for Conv2D
         x = self.conv(x)
-        # Apply frequency pooling and reshape
-        #x = self.freq_pool(x)  # (batch, channels, time, 1)
-        #x = x.squeeze(-1).transpose(1, 2)  # (batch, time, channels)
+        
+        # TODO: Apply frequency pooling and reshape
+        # x = self.freq_pool(x)  # (batch, channels, time, 1)
+        # x = x.squeeze(-1).transpose(1, 2)  # (batch, time, channels)
+        
         x = x.transpose(1, 2).contiguous().view(x.size(0), x.size(2), -1) # (batch, time, channels)
         x = self.linear_out(x) # (batch, time, channels)
         x = self.dropout(x)
@@ -252,7 +254,7 @@ class Conv2DSubsampling(torch.nn.Module):
 ## -------------------------------------------------------------------------------------------------        
 class SpeechEmbedding(nn.Module):
     def __init__(self, input_dim: int, output_dim: int, time_reduction: int = 6, 
-                 reduction_method: str = 'lstm', dropout: float = 0.1):
+                 reduction_method: str = 'lstm', dropout: float = 0.0):
         """
         Args:
             input_dim (int): Input feature dimension
