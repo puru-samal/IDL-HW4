@@ -1,20 +1,6 @@
-# HW4 Handout Directory Structure
+# HW4 TA Directory Structure
 
 This should be the directory structure from your projectroot directory:
-
-## 📓 Notebooks & Core Files
-
-```
-.
-├── HW4P1_nb.ipynb
-├── HW4P2_nb.ipynb
-├── README.md
-├── Makefile
-├── autograde-Makefile
-├── simulate_autolab.py
-└── autograde.tar
-
-```
 
 ## 📊 Dataset Structure
 
