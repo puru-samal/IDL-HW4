@@ -98,12 +98,6 @@ class BaseTrainer(ABC):
         self.expt_root, self.checkpoint_dir, self.attn_dir, self.text_dir, \
         self.best_model_path, self.last_model_path = self._init_experiment(run_name, config_file)
 
-        # Wandb initialization
-        self.use_wandb = config['training'].get('use_wandb', False)
-        self.wandb_run = None
-        if self.use_wandb:
-            self._init_wandb()
-
         # Training state
         self.current_epoch = 0
         self.best_metric = float('inf')
@@ -177,8 +171,6 @@ class BaseTrainer(ABC):
             else:
                 raise NotImplementedError("Model architecture summary not implemented")
 
-            
-
         # Create subdirectories
         checkpoint_dir = expt_root / 'checkpoints'
         attn_dir = expt_root / 'attn'
@@ -192,6 +184,7 @@ class BaseTrainer(ABC):
         best_model_path = checkpoint_dir / 'checkpoint-best-metric-model.pth'
         last_model_path = checkpoint_dir / 'checkpoint-last-epoch-model.pth'
 
+        # Wandb initialization
         use_wandb = self.config['training'].get('use_wandb', False)
         if use_wandb:
             """Initialize Weights & Biases logging."""
@@ -229,7 +222,7 @@ class BaseTrainer(ABC):
             wandb.log(wandb_metrics, step=step)
         
         # Print metrics with tree structure
-        print(f"\n📊 Training Metrics (Epoch {step}):")
+        print(f"\n📊 Metrics (Epoch {step}):")
         
         # Print metrics by split
         splits = sorted(metrics.keys())
