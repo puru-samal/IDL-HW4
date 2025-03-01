@@ -248,7 +248,7 @@ class EncoderDecoderTransformer(nn.Module):
             time_reduction=time_reduction,
             reduction_method=reduction_method,
         )
-        
+
         self.target_embedding    = nn.Embedding(num_classes, d_model)
         self.positional_encoding = PositionalEncoding(d_model=d_model, max_len=max_len)
         self.final_linear        = nn.Linear(d_model, num_classes)
@@ -261,7 +261,7 @@ class EncoderDecoderTransformer(nn.Module):
         )
 
         # TODO: Initialize weights
-        self.initialize_weights()
+        #self.initialize_weights()
 
         # TODO: Weight tying if enabled
         if weight_tying:

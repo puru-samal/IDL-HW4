@@ -4,7 +4,7 @@ Create Conda Environment (Both PSC and Local)
 
 ```bash
 # Create Conda Environment
-module load anaconda # PSC only
+module load anaconda3 # PSC only
 conda create -n your_env_name python=3.12.4
 
 # Deactivate Conda Environment

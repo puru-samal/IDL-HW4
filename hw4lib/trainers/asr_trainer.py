@@ -291,13 +291,12 @@ class ASRTrainer(BaseTrainer):
         
         return eval_results
 
-    def recognize(self, dataloader, max_len: int = 300, recognition_config: Optional[Dict[str, Any]] = None, config_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def recognize(self, dataloader, recognition_config: Optional[Dict[str, Any]] = None, config_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Evaluate the model by generating transcriptions from audio features.
         
         Args:
             dataloader: DataLoader containing the evaluation data
-            max_len: Maximum length of the generated sequence
             recognition_config: Optional dictionary containing recognition parameters:
                 - num_batches: int, number of batches to process
                 - beam_width: int, beam search width
