@@ -98,7 +98,7 @@ tests/
 
 ```
 
-# TODO:
+# Internal TODO:
 
 - [ ] Remove `tests/test_hw4p1.py` from the handout
 - [ ] Update threshold in `tests/test_hw4p1.py` and re-run `make create_autograde`

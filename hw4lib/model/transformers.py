@@ -260,8 +260,6 @@ class EncoderDecoderTransformer(nn.Module):
             nn.LogSoftmax(dim=-1)
         )
 
-        # TODO: Initialize weights
-        #self.initialize_weights()
 
         # TODO: Weight tying if enabled
         if weight_tying:
@@ -425,35 +423,6 @@ class EncoderDecoderTransformer(nn.Module):
         # Return only the last token's logits
         return seq_out[:, -1, :]
 
-    def initialize_weights(self):
-        """
-        Initialize the weights of the model using Xavier initialization for linear layers,
-        normal distribution for embeddings, and scaled initialization for attention layers.
-        """
-        def _init_weights(module):
-            if isinstance(module, nn.Linear):
-                nn.init.xavier_uniform_(module.weight)
-                if module.bias is not None:
-                    nn.init.zeros_(module.bias)
-            elif isinstance(module, nn.Embedding):
-                nn.init.normal_(module.weight, mean=0, std=0.02)
-            elif isinstance(module, nn.LayerNorm):
-                nn.init.ones_(module.weight)
-                nn.init.zeros_(module.bias)
-            elif isinstance(module, nn.MultiheadAttention):
-                if hasattr(module, 'in_proj_weight'):
-                    head_dim = module.head_dim
-                    scale = (1.0 / (head_dim ** 0.5))
-                    nn.init.xavier_uniform_(module.in_proj_weight, gain=scale)
-                    if module.in_proj_bias is not None:
-                        nn.init.zeros_(module.in_proj_bias)
-                
-                if hasattr(module, 'out_proj'):
-                    nn.init.xavier_uniform_(module.out_proj.weight)
-                    if module.out_proj.bias is not None:
-                        nn.init.zeros_(module.out_proj.bias)
-                
-        self.apply(_init_weights)
 
     @classmethod
     def from_pretrained_decoder(
