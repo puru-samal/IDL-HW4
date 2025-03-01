@@ -280,8 +280,6 @@ class LMTrainer(BaseTrainer):
                 self.best_metric = val_loss
                 self.save_checkpoint('checkpoint-best-metric-model.pth')
 
-        # Final cleanup
-        self.cleanup()
 
     def evaluate(self, test_dataloader):
         """
