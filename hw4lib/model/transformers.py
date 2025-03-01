@@ -95,9 +95,6 @@ class DecoderOnlyTransformer(nn.Module):
         self.dropout                = nn.Dropout(dropout)
         self.norm                   = nn.LayerNorm(d_model)
 
-        # TODO: Initialize weights
-        #self.initialize_weights()
-
         # TODO: Weight tying
         if weight_tying:
             self.target_embedding.weight = self.final_linear.weight 
@@ -172,41 +169,6 @@ class DecoderOnlyTransformer(nn.Module):
         logits     = seq_out[:, -1, :]
         return logits
     
-    def initialize_weights(self):
-        """
-        Initialize the weights of the model using Xavier initialization for linear layers,
-        normal distribution for embeddings, and scaled initialization for attention layers.
-        """
-        def _init_weights(module):
-            if isinstance(module, nn.Linear):
-                # Xavier uniform initialization for linear layers
-                nn.init.xavier_uniform_(module.weight)
-                if module.bias is not None:
-                    nn.init.zeros_(module.bias)
-            elif isinstance(module, nn.Embedding):
-                # Normal distribution initialization for embeddings
-                nn.init.normal_(module.weight, mean=0, std=0.02)
-            elif isinstance(module, nn.LayerNorm):
-                # Layer norm weights are 1, biases are 0
-                nn.init.ones_(module.weight)
-                nn.init.zeros_(module.bias)
-            elif isinstance(module, nn.MultiheadAttention):
-                # Initialize all attention weights with Xavier uniform
-                # Scale by 1/sqrt(head_dim) for stable training
-                if hasattr(module, 'in_proj_weight'):
-                    head_dim = module.head_dim
-                    scale = (1.0 / (head_dim ** 0.5))
-                    nn.init.xavier_uniform_(module.in_proj_weight, gain=scale)
-                    if module.in_proj_bias is not None:
-                        nn.init.zeros_(module.in_proj_bias)
-                
-                # Initialize output projection
-                if hasattr(module, 'out_proj'):
-                    nn.init.xavier_uniform_(module.out_proj.weight)
-                    if module.out_proj.bias is not None:
-                        nn.init.zeros_(module.out_proj.bias)
-                
-        self.apply(_init_weights)
 
 ## -------------------------------------------------------------------------------------------------
 ## Encoder-Decoder Transformer
@@ -624,29 +586,6 @@ class EncoderDecoderTransformer(nn.Module):
         print(f"Total trainable: {total_trainable:,}")
 
 
-def setup_asr_model(config):
-    # Create model with pretrained decoder weights
-    model, param_groups = EncoderDecoderTransformer.from_pretrained_decoder(
-        decoder_checkpoint_path=config['training']['decoder_checkpoint'],
-        config=config['model'],
-        freeze_transferred=config['training'].get('freeze_transferred', False),
-        decoder_lr_factor=config['training'].get('decoder_lr_factor', 0.1)
-    )
-    
-    # Log parameter groups
-    model.log_param_groups(param_groups)
-    
-    # Create optimizer with parameter groups
-    base_lr = config['training']['learning_rate']
-    optimizer = torch.optim.Adam([
-        {
-            'params': group['params'],
-            'lr': base_lr * group['lr_factor']
-        }
-        for group in param_groups
-    ])
-    
-    return model, optimizer
 
 
 def get_decoder_only_inputs(max_len: int = 300, num_classes: int = 10000):
