@@ -505,7 +505,22 @@ class ProgressiveTrainer(ASRTrainer):
 
     def configure_stage(self, stage_config):
         """Configure model for current training stage"""
-        print(f"\n=== Starting Stage: {stage_config['name']} ===")
+        # Create a pretty header
+        print("\n" + "="*80)
+        print(f"Starting Stage: {stage_config['name']}".center(80))
+        print("="*80)
+        
+        # Print key configuration details
+        print(f"\nConfiguration Details:")
+        print(f"├── Data Subset: {stage_config['data_subset']*100:.1f}% of training data")
+        print(f"├── Training Epochs: {stage_config['epochs']}")
+        print(f"├── Dropout: {stage_config['dropout']}")
+        print(f"├── Label Smoothing: {stage_config['label_smoothing']}")
+        print(f"├── Encoder Layers: {stage_config['encoder_active_layers']}")
+        print(f"│   └── Active: {len(stage_config['encoder_active_layers'])} layers")
+        print(f"└── Decoder Layers: {stage_config['decoder_active_layers']}")
+        print(f"    └── Active: {len(stage_config['decoder_active_layers'])} layers")
+        print("\n" + "-"*80 + "\n")
         
         # Update dropout
         self.model.dropout.p = stage_config['dropout']
@@ -549,8 +564,8 @@ class ProgressiveTrainer(ASRTrainer):
             self.current_stage = stage_idx
             self.configure_stage(stage_config)
             # Get subset of train_dataloader
-            train_dataloader = self.get_subset_dataloader(train_dataloader, stage_config['data_subset'])
-            super().train(train_dataloader, val_dataloader, epochs=stage_config['epochs'])
+            subset_train_dataloader = self.get_subset_dataloader(train_dataloader, stage_config['data_subset'])
+            super().train(subset_train_dataloader, val_dataloader, epochs=stage_config['epochs'])
 
 
     def transition_to_full_training(self):
