@@ -507,9 +507,6 @@ class ProgressiveTrainer(ASRTrainer):
         """Configure model for current training stage"""
         print(f"\n=== Starting Stage: {stage_config['name']} ===")
         
-        # Update time reduction
-        self.model.source_embedding.time_reduction = stage_config['time_reduction']
-        
         # Update dropout
         self.model.dropout.p = stage_config['dropout']
         
