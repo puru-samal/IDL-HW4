@@ -32,6 +32,16 @@ class ASRTrainer(BaseTrainer):
                 zero_infinity=True
             )
 
+        # Check if model has parameter groups from pretraining
+        if hasattr(model, 'pretrained_params'):
+            # Modify the optimizer's parameter groups
+            for group in self.optimizer.param_groups:
+                # Find matching parameter group from pretraining
+                for pretrained_group in model.pretrained_params:
+                    if any(p1 is p2 for p1 in group['params'] for p2 in pretrained_group['params']):
+                        group['lr'] *= pretrained_group['lr_factor']
+                        print(f"Adjusted learning rate for {pretrained_group['name']} group: {group['lr']}")
+
     def _train_epoch(self, dataloader):
         """
         Train for one epoch.

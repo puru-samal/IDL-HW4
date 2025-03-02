@@ -523,14 +523,6 @@ class EncoderDecoderTransformer(nn.Module):
         # Create parameter groups
         print("\nCreating parameter groups:")
         param_groups = []
-        if new_params:
-            param_groups.append({
-                'params': new_params,
-                'lr_factor': 1.0,
-                'name': 'new_params'
-            })
-            print(f"  - New parameters group: {len(new_params)} parameters")
-        
         if not freeze_transferred and transferred_params:
             param_groups.append({
                 'params': transferred_params,
