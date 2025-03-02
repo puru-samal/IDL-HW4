@@ -602,12 +602,11 @@ class ProgressiveTrainer(ASRTrainer):
         # Create new DataLoader with same configuration as original
         subset_loader = torch.utils.data.DataLoader(
             subset_dataset,
-            batch_size=dataloader.batch_size,
-            shuffle=dataloader.shuffle,
-            num_workers=dataloader.num_workers,
-            collate_fn=dataloader.collate_fn,
-            pin_memory=dataloader.pin_memory,
-            drop_last=dataloader.drop_last
+            batch_size=self.config['data']['batch_size'],
+            shuffle=True,
+            num_workers=self.config['data']['NUM_WORKERS'],
+            collate_fn=dataset.collate_fn,
+            pin_memory=True
         )
         
         return subset_loader
