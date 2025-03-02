@@ -255,8 +255,6 @@ class ASRTrainer(BaseTrainer):
                 self.best_metric = val_metrics['cer']
                 self.save_checkpoint('checkpoint-best-metric-model.pth') 
                 
-        # Final cleanup
-        self.cleanup()
 
     def evaluate(self, dataloader, solution:Optional[List[str]] = None) -> Dict[str, Dict[str, float]]:
         """

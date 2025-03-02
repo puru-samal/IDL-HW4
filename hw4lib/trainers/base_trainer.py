@@ -318,5 +318,5 @@ class BaseTrainer(ABC):
 
     def cleanup(self):
         """Cleanup resources."""
-        if self.wandb_run:
+        if self.use_wandb and self.wandb_run:
             wandb.finish()
