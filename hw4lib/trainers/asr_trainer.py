@@ -579,7 +579,7 @@ class ProgressiveTrainer(ASRTrainer):
 
     def get_subset_dataloader(self, dataloader, subset_fraction):
         """
-        Creates a new DataLoader with a subset of the original data.
+        Creates a new DataLoader with a subset of the original data while preserving dataset attributes.
         
         Args:
             dataloader: Original DataLoader
@@ -598,6 +598,11 @@ class ProgressiveTrainer(ASRTrainer):
         
         # Create a Subset dataset
         subset_dataset = Subset(dataset, indices)
+        
+        # Add necessary attributes from original dataset to subset
+        subset_dataset.text_max_len = dataset.text_max_len
+        subset_dataset.feat_max_len = dataset.feat_max_len
+        subset_dataset.get_avg_chars_per_token = dataset.get_avg_chars_per_token
         
         # Create new DataLoader with same configuration as original
         subset_loader = torch.utils.data.DataLoader(
