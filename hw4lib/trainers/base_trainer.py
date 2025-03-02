@@ -156,7 +156,7 @@ class BaseTrainer(ABC):
                 num_feats = self.config['data']['num_feats']
                 input_data = [
                     torch.randn(batch_size, max_len, num_feats).to(self.device), 
-                    torch.randint(0, 100, (batch_size, max_len//10)).to(self.device), 
+                    torch.randint(0, self.model.num_classes, (batch_size, max_len//10)).to(self.device), 
                     torch.randint(1, max_len, (batch_size,)).to(self.device), 
                     torch.randint(1, max_len//10, (batch_size,)).to(self.device)
                 ]
