@@ -572,6 +572,17 @@ class ProgressiveTrainer(ASRTrainer):
         
         print(f"├── Frozen Parameters: {frozen_count:,}")
         print(f"└── Trainable Parameters: {trainable_count:,}")
+    
+    
+    def progressive_train(self, train_dataloader, val_dataloader, stages: List[Dict[str, Any]]):
+        """Progressive training through stages"""
+        # Train through stages
+        for stage_idx, stage_config in enumerate(stages):
+            self.current_stage = stage_idx
+            self.configure_stage(stage_config)
+            # Get subset of train_dataloader
+            subset_train_dataloader = self.get_subset_dataloader(train_dataloader, stage_config['data_subset'])
+            super().train(subset_train_dataloader, val_dataloader, epochs=stage_config['epochs'])
 
     def transition_to_full_training(self):
         """Transition from progressive training to full training"""
