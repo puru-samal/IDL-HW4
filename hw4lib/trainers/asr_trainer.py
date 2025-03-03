@@ -597,7 +597,7 @@ class ProgressiveTrainer(ASRTrainer):
         # Restore CrossEntropyLoss
         self.ce_criterion = nn.CrossEntropyLoss(
             ignore_index=self.tokenizer.pad_id,
-            label_smoothing=self.config['training']['label_smoothing']
+            label_smoothing=self.config['loss']['label_smoothing']
         )
         
         # Unfreeze all parameters
