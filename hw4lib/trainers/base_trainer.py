@@ -301,7 +301,7 @@ class BaseTrainer(ABC):
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"No checkpoint found at {checkpoint_path}")
         
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=True)
         
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

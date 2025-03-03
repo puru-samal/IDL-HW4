@@ -450,7 +450,7 @@ class EncoderDecoderTransformer(nn.Module):
 
         # Load decoder checkpoint
         print("Loading pretrained decoder weights...")
-        checkpoint = torch.load(decoder_checkpoint_path, map_location='cpu')
+        checkpoint = torch.load(decoder_checkpoint_path, map_location='cpu', weights_only=True)
         decoder_state_dict = checkpoint['model_state_dict']
         
         # Track named parameters
