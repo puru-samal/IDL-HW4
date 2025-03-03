@@ -204,6 +204,7 @@ class ASRTrainer(BaseTrainer):
 
         if epochs is None:
             epochs = self.config['training']['epochs']
+        else:
             self.current_epoch = 0
 
         for epoch in range(self.current_epoch, epochs):
@@ -573,7 +574,7 @@ class ProgressiveTrainer(ASRTrainer):
         print(f"├── Frozen Parameters: {frozen_count:,}")
         print(f"└── Trainable Parameters: {trainable_count:,}")
     
-    
+
     def progressive_train(self, train_dataloader, val_dataloader, stages: List[Dict[str, Any]]):
         """Progressive training through stages"""
         # Train through stages
