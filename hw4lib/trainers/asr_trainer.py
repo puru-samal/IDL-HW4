@@ -32,15 +32,6 @@ class ASRTrainer(BaseTrainer):
                 zero_infinity=True
             )
 
-        # Check if model has parameter groups from pretraining
-        if hasattr(model, 'pretrained_params'):
-            # Modify the optimizer's parameter groups
-            for group in self.optimizer.param_groups:
-                # Find matching parameter group from pretraining
-                for pretrained_group in model.pretrained_params:
-                    if any(p1 is p2 for p1 in group['params'] for p2 in pretrained_group['params']):
-                        group['lr'] *= pretrained_group['lr_factor']
-                        print(f"Adjusted learning rate for {pretrained_group['name']} group: {group['lr']}")
 
     def _train_epoch(self, dataloader):
         """
@@ -213,6 +204,7 @@ class ASRTrainer(BaseTrainer):
 
         if epochs is None:
             epochs = self.config['training']['epochs']
+            self.current_epoch = 0
 
         for epoch in range(self.current_epoch, epochs):
             self.current_epoch = epoch
@@ -516,57 +508,70 @@ class ProgressiveTrainer(ASRTrainer):
         print(f"├── Training Epochs: {stage_config['epochs']}")
         print(f"├── Dropout: {stage_config['dropout']}")
         print(f"├── Label Smoothing: {stage_config['label_smoothing']}")
-        print(f"├── Encoder Layers: {stage_config['encoder_active_layers']}")
-        print(f"│   └── Active: {len(stage_config['encoder_active_layers'])} layers")
-        print(f"└── Decoder Layers: {stage_config['decoder_active_layers']}")
-        print(f"    └── Active: {len(stage_config['decoder_active_layers'])} layers")
-        print("\n" + "-"*80 + "\n")
         
-        # Update dropout
+        # Update dropout and label smoothing
         self.model.dropout.p = stage_config['dropout']
-        
-        # Update label smoothing
         self.ce_criterion = nn.CrossEntropyLoss(
             ignore_index=self.tokenizer.pad_id,
             label_smoothing=stage_config['label_smoothing']
         )
         
-        # Activate specified encoder layers
+        # Get freeze configurations
+        encoder_freeze = stage_config.get('encoder_freeze', [])
+        decoder_freeze = stage_config.get('decoder_freeze', [])
+        
+        # Activate and configure encoder layers
         encoder_active_layers = stage_config['encoder_active_layers']
+        if encoder_freeze and len(encoder_freeze) != len(encoder_active_layers):
+            raise ValueError(f"Encoder freeze list length ({len(encoder_freeze)}) must match number of active encoder layers ({len(encoder_active_layers)})")
+        
+        # Set the active encoder layers of the model
         self.model.enc_layers = nn.ModuleList([
             self.all_encoder_layers[i] for i in encoder_active_layers
         ])
         self.model.num_encoder_layers = len(encoder_active_layers)
-
-        # Activate specified decoder layers
+        
+        # Activate and configure decoder layers
         decoder_active_layers = stage_config['decoder_active_layers']
+        if decoder_freeze and len(decoder_freeze) != len(decoder_active_layers):
+            raise ValueError(f"Decoder freeze list length ({len(decoder_freeze)}) must match number of active decoder layers ({len(decoder_active_layers)})")
+        
+        # Set the active decoder layers of the model
         self.model.dec_layers = nn.ModuleList([
             self.all_decoder_layers[i] for i in decoder_active_layers
         ])
         self.model.num_decoder_layers = len(decoder_active_layers)
 
-    def progressive_train(self, train_dataloader, val_dataloader, stages: List[Dict[str, Any]]):
-        """Progressive training through stages"""
-        # Setup warmup scheduler
-        warmup_epochs = 10
-        initial_lr = 1e-4
-        final_lr = 1e-3
+        # Handle layer freezing
+        frozen_count = 0
+        trainable_count = 0
         
-        self.config['scheduler']['warmup'] = {
-            'enabled': True,
-            'epochs': warmup_epochs,
-            'start_factor': initial_lr / final_lr,
-            'end_factor': 1.0
-        }
+        # Configure encoder layers freezing
+        print("├── Encoder Layers:")
+        for idx, layer in enumerate(self.model.enc_layers):
+            should_freeze = encoder_freeze[idx]
+            for param in layer.parameters():
+                param.requires_grad = not should_freeze
+                if should_freeze:
+                    frozen_count += param.numel()
+                else:
+                    trainable_count += param.numel()
+            print(f"│   ├── Layer {encoder_active_layers[idx]}: {'Frozen' if should_freeze else 'Trainable'}")
         
-        # Train through stages
-        for stage_idx, stage_config in enumerate(stages):
-            self.current_stage = stage_idx
-            self.configure_stage(stage_config)
-            # Get subset of train_dataloader
-            subset_train_dataloader = self.get_subset_dataloader(train_dataloader, stage_config['data_subset'])
-            super().train(subset_train_dataloader, val_dataloader, epochs=stage_config['epochs'])
-
+        # Configure decoder layers
+        print("├── Decoder Layers:")
+        for idx, layer in enumerate(self.model.dec_layers):
+            should_freeze = decoder_freeze[idx]
+            for param in layer.parameters():
+                param.requires_grad = not should_freeze
+                if should_freeze:
+                    frozen_count += param.numel()
+                else:
+                    trainable_count += param.numel()
+            print(f"│   ├── Layer {decoder_active_layers[idx]}: {'Frozen' if should_freeze else 'Trainable'}")
+        
+        print(f"├── Frozen Parameters: {frozen_count:,}")
+        print(f"└── Trainable Parameters: {trainable_count:,}")
 
     def transition_to_full_training(self):
         """Transition from progressive training to full training"""
@@ -578,16 +583,26 @@ class ProgressiveTrainer(ASRTrainer):
         self.model.num_encoder_layers = len(self.all_encoder_layers)
         self.model.num_decoder_layers = len(self.all_decoder_layers)
         
-        # Reset optimizer and scheduler
-        self.optimizer = create_optimizer(self.model, self.config['optimizer'])
-        self.scheduler = None  # Will be recreated in train()
+        # Unfreeze all parameters
+        unfrozen_count = 0
+        for param in self.model.parameters():
+            param.requires_grad = True
+            unfrozen_count += param.numel()
+        print(f"├── Total Unfrozen Parameters: {unfrozen_count:,}")
         
         # Reset best metrics for new training phase
         self.best_metric = float('inf')
 
     
     def train(self, train_dataloader, val_dataloader, epochs):
-        """Run full training phase"""
+        """
+        Run full training phase.
+        It is recommended to set the optimizer and scheduler explicitly before calling this function.
+        like this:
+        cls.optimizer = create_optimizer(self.model, self.config['optimizer'])
+        cls.scheduler = create_scheduler(cls.optimizer, cls.config['scheduler'], train_dataloader)
+        cls.progressive_train(train_dataloader, val_dataloader, stages)
+        """
         self.transition_to_full_training()
         super().train(train_dataloader, val_dataloader, epochs=epochs)
 
