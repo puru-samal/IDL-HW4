@@ -206,7 +206,8 @@ class ASRTrainer(BaseTrainer):
             epochs = self.config['training']['epochs']
 
         for epoch in range(self.current_epoch, self.current_epoch + epochs):
-            self.current_epoch = epoch
+            
+            self.current_epoch += 1
 
             # TODO: Train for one epoch
             train_metrics, train_attn = self._train_epoch(train_dataloader)
