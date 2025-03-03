@@ -592,6 +592,12 @@ class ProgressiveTrainer(ASRTrainer):
         self.model.dec_layers = nn.ModuleList(self.all_decoder_layers)
         self.model.num_encoder_layers = len(self.all_encoder_layers)
         self.model.num_decoder_layers = len(self.all_decoder_layers)
+
+        # Restore CrossEntropyLoss
+        self.ce_criterion = nn.CrossEntropyLoss(
+            ignore_index=self.tokenizer.pad_id,
+            label_smoothing=self.config['training']['label_smoothing']
+        )
         
         # Unfreeze all parameters
         unfrozen_count = 0
