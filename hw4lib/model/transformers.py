@@ -439,7 +439,7 @@ class EncoderDecoderTransformer(nn.Module):
             
         Returns:
             model: Initialized encoder-decoder transformer
-            param_info: Dictionary containing lists of parameters {'transferred': [], 'new': []}
+            param_info: Dictionary containing lists of named parameters {'transferred': [(name, param)], 'new': [(name, param)]}
         """
         print("\n=== Initializing Encoder-Decoder from Pretrained Decoder ===")
         print(f"Loading checkpoint from: {decoder_checkpoint_path}")
@@ -453,7 +453,7 @@ class EncoderDecoderTransformer(nn.Module):
         checkpoint = torch.load(decoder_checkpoint_path, map_location='cpu')
         decoder_state_dict = checkpoint['model_state_dict']
         
-        # Track parameters
+        # Track named parameters
         transferred_params = []
         new_params = []
         
@@ -466,7 +466,9 @@ class EncoderDecoderTransformer(nn.Module):
             param_count = sum(p.numel() for p in target_module.parameters())
             print(f"  - Transferring {prefix} ({param_count:,} parameters)")
             target_module.load_state_dict(module_state_dict)
-            transferred_params.extend(target_module.parameters())
+            # Store the full parameter names with their prefix
+            for name, param in target_module.named_parameters():
+                transferred_params.append((f"{prefix}{name}", param))
 
         # Transfer shared components
         print("\nTransferring shared components:")
@@ -492,16 +494,16 @@ class EncoderDecoderTransformer(nn.Module):
                 f'dec_layers.{i}.ffn.'
             )
         
-        # Collect new parameters
+        # Collect new parameters with their names
         print("\nCollecting new parameters...")
         for name, param in model.named_parameters():
             is_new = True
-            for transferred_param in transferred_params:
+            for transferred_name, transferred_param in transferred_params:
                 if param is transferred_param:
                     is_new = False
                     break
             if is_new:
-                new_params.append(param)
+                new_params.append((name, param))
         
         print("\n=== Initialization Complete ===")
         return model, {'transferred': transferred_params, 'new': new_params}
