@@ -204,10 +204,8 @@ class ASRTrainer(BaseTrainer):
 
         if epochs is None:
             epochs = self.config['training']['epochs']
-        else:
-            self.current_epoch = 0
 
-        for epoch in range(self.current_epoch, epochs):
+        for epoch in range(self.current_epoch, self.current_epoch + epochs):
             self.current_epoch = epoch
 
             # TODO: Train for one epoch
