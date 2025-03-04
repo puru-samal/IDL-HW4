@@ -228,7 +228,8 @@ class LMTrainer(BaseTrainer):
             self.scheduler = create_scheduler(
                 self.optimizer,
                 self.config['scheduler'],
-                train_dataloader
+                train_dataloader,
+                self.config['training']['gradient_accumulation_steps']
             )
 
         # Training loop

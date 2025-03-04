@@ -190,7 +190,8 @@ class ASRTrainer(BaseTrainer):
             self.scheduler = create_scheduler(
                 self.optimizer,
                 self.config['scheduler'],
-                train_dataloader
+                train_dataloader,
+                self.config['training']['gradient_accumulation_steps']
             )
 
         # TODO: Set max transcript length
@@ -286,6 +287,12 @@ class ASRTrainer(BaseTrainer):
             # Calculate metrics on full batch
             generated = [r['generated'] for r in results]
             metrics = self._calculate_asr_metrics(solution_data, generated)
+            print("-"*50)
+            print(f"Config: {config_name}")
+            print(f"WER: {metrics['wer']:.2f}%")
+            print(f"CER: {metrics['cer']:.2f}%")
+            print(f"Word Distance: {metrics['word_dist']:.2f}")
+            print("-"*50)
             eval_results[config_name] = metrics
             self._save_generated_text(results, f'test_{config_name}_results')
         
@@ -398,14 +405,14 @@ class ASRTrainer(BaseTrainer):
                     post_processed_targets = generator.post_process_sequence(targets_golden, self.tokenizer)
                     for j, (pred, target) in enumerate(zip(post_processed_preds, post_processed_targets)):
                         results.append({
-                            'target': self.tokenizer.decode(target.tolist()),
-                            'generated': self.tokenizer.decode(pred.tolist()[1:]),
+                            'target': self.tokenizer.decode(target.tolist(), skip_special_tokens=True),
+                            'generated': self.tokenizer.decode(pred.tolist(), skip_special_tokens=True),
                             'score': scores[j].item()
                         })
                 else:
                     for j, pred in enumerate(post_processed_preds):
                         results.append({
-                            'generated': self.tokenizer.decode(pred.tolist()[1:]),
+                            'generated': self.tokenizer.decode(pred.tolist(), skip_special_tokens=True),
                             'score': scores[j].item()
                         })
 
@@ -437,26 +444,20 @@ class ASRTrainer(BaseTrainer):
             'beam_width': 1,
         })
 
-        beam_8_config = common_config.copy()
-        beam_8_config.update({
-            'beam_width': 8,
+        beam_10_config = common_config.copy()
+        beam_10_config.update({
+            'beam_width': 10,
         })
         
-        beam_16_config = common_config.copy()
-        beam_16_config.update({
-            'beam_width': 16,
+        beam_20_config = common_config.copy()
+        beam_20_config.update({
+            'beam_width': 20,
         })
         
-        beam_32_config = common_config.copy()
-        beam_32_config.update({
-            'beam_width': 32,
-        })
-
         return {
             'greedy': greedy_config,
-            'beam_8': beam_8_config,
-            'beam_16': beam_16_config,
-            'beam_32': beam_32_config
+            'beam_10': beam_10_config,
+            'beam_20': beam_20_config
         }
         
     def _calculate_asr_metrics(self, references: Union[str, List[str]], hypotheses: Union[str, List[str]]) -> Tuple[float, float, float]:
