@@ -40,6 +40,37 @@ This file contains two key transformer architectures:
     - Handle single token prediction
     - Not apply padding masks
     - Return only the final token's logits
+
+2. EncoderDecoderTransformer: Used for ASR (Automatic Speech Recognition) tasks
+   - Contains an encoder stack for processing speech features
+   - Contains a decoder stack for generating text tokens
+   - Uses both self-attention and cross-attention mechanisms
+   - Includes CTC auxiliary loss support and optional weight tying
+
+   Key components to implement:
+   1. Speech Embedding: Convert speech features to vectors with time reduction
+   2. Positional Encoding: Add position information (optional for both encoder/decoder)
+   3. Encoder Stack: Process speech features
+   4. Decoder Stack: Generate text tokens
+   5. CTC Head: For auxiliary CTC loss computation
+   6. Output Projection: Convert final representations to logits
+
+   Architecture follows Pre-LN (Layer Normalization) design where:
+   - Layer normalization is applied at the start of each sublayer
+   - Residual connections wrap around each sublayer
+   - Final layer norm is applied before output projection
+
+   Implementation Notes:
+   1. The forward pass should handle:
+   - Proper masking (padding for encoder, both padding and causal for decoder)
+   - Collecting attention weights from all layers
+   - Optional layer dropout during training
+   - CTC logits computation
+
+   2. The score method should:
+   - Handle single token prediction given encoder output
+   - Not apply padding masks to decoder inputs
+   - Return only the final token's logits
 '''
 
 ## -------------------------------------------------------------------------------------------------

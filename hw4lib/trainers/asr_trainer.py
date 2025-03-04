@@ -14,6 +14,50 @@ from torch.utils.data import Subset
 
 
 class ASRTrainer(BaseTrainer):
+    """
+    ASR (Automatic Speech Recognition) Trainer class that handles training, validation, and recognition loops.
+
+    This trainer implements:
+    1. Training loop with gradient accumulation, mixed precision training, and optional CTC loss
+    2. Validation loop for model evaluation
+    3. Recognition capabilities with different decoding strategies (greedy, beam search)
+    4. Language model shallow fusion during recognition
+
+    Implementation Tasks:
+    - TODO: Initialize CE and CTC loss in __init__
+    - TODO: Implement key parts of the training loop in _train_epoch
+    - TODO: Implement key parts of the validation loop in _validate_epoch
+    - TODO: Implement key parts of the full training loop in train
+    - TODO: Implement recognition functionality in recognize
+    - TODO: Calculate ASR metrics in _calculate_asr_metrics
+
+    Implementation Notes:
+    1. For __init__:
+        - Initialize CrossEntropyLoss with appropriate padding index and label smoothing
+        - Initialize CTCLoss if ctc_weight > 0
+        
+    2. For _train_epoch:
+        - Unpack the batch (features, shifted targets, golden targets, lengths)
+        - Get model predictions, attention weights and CTC inputs
+        - Calculate CE loss and CTC loss if enabled
+        - Handle gradient accumulation correctly
+        
+    3. For _validate_epoch:
+        - Use recognize() to generate transcriptions
+        - Calculate WER, CER and word distance metrics
+        
+    4. For train:
+        - Initialize scheduler if not already done
+        - Set maximum transcript length
+        - Implement epoch loop with training and validation
+        - Handle model checkpointing and metric logging
+        
+    5. For recognize:
+        - Initialize sequence generator with appropriate scoring function
+        - Handle both greedy and beam search decoding
+        - Support language model shallow fusion
+        - Post-process sequences using tokenizer
+    """
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
         super().__init__(model, tokenizer, config, run_name, config_file, device)
         
@@ -488,6 +532,48 @@ class ASRTrainer(BaseTrainer):
     
 # INTERNAL USE ONLY
 class ProgressiveTrainer(ASRTrainer):
+    """
+    Progressive Trainer class that implements curriculum learning for ASR training.
+
+    This trainer extends ASRTrainer to implement:
+    1. Stage-based training with increasing model complexity
+    2. Gradual unfreezing of model layers
+    3. Dynamic data subsetting
+    4. Smooth transition to full model training
+
+    Implementation Tasks:
+    - TODO: Store original model layers in __init__
+    - TODO: Configure model for each stage in configure_stage
+    - TODO: Implement progressive training loop in progressive_train
+    - TODO: Handle transition to full training in transition_to_full_training
+    - TODO: Create data subsets in get_subset_dataloader
+
+    Implementation Notes:
+    1. For __init__:
+        - Store original encoder and decoder layers
+        - Initialize stage counter
+        
+    2. For configure_stage:
+        - Update dropout and label smoothing
+        - Activate specified encoder and decoder layers
+        - Handle layer freezing based on configuration
+        - Print detailed configuration information
+        
+    3. For progressive_train:
+        - Configure model for each stage
+        - Create appropriate data subset
+        - Train using parent class methods
+        
+    4. For transition_to_full_training:
+        - Restore all model layers
+        - Reset loss function parameters
+        - Unfreeze all parameters
+        - Reset best metrics
+        
+    5. For get_subset_dataloader:
+        - Create subset while preserving dataset attributes
+        - Maintain collate function and other dataloader settings
+    """
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
         super().__init__(model, tokenizer, config, run_name, config_file, device)
         self.current_stage = 0

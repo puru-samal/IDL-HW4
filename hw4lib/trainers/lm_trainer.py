@@ -6,47 +6,46 @@ from typing import Dict, Tuple, Any, Optional, List
 from ..utils import create_scheduler
 from ..decoding.sequence_generator import SequenceGenerator
 
-"""
-Language Model Trainer class that handles the training, validation, and generation loops.
-
-This trainer implements:
-1. Training loop with gradient accumulation and mixed precision training
-2. Validation loop for model evaluation
-3. Generation capabilities with different decoding strategies
-
-Implementation Tasks:
-- TODO: Initialize the criterion in __init__
-- TODO: Implement key parts of the training loop in _train_epoch
-- TODO: Implement key parts of the the validation loop in _validate_epoch
-- TODO: Implement key parts of the full training loop in train
-- TODO: Use your greedy generation implementation in generate
-
-Implementation Notes:
-1. For __init__:
-    - Initialize CrossEntropyLoss with appropriate padding index and label smoothing
-    
-2. For _train_epoch:
-    - Unpack the batch (shifted inputs, golden targets, lengths)
-    - Get model predictions and attention weights
-    - Calculate loss and normalize by accumulation steps
-    - Handle gradient accumulation correctly
-    
-3. For _validate_epoch:
-    - Similar to _train_epoch but without gradient calculations
-    - Use torch.inference_mode() for validation
-    
-4. For train:
-    - Initialize scheduler if not already done
-    - Implement the epoch loop with training and validation
-    - Handle model checkpointing and metric logging
-    
-5. For generate:
-    - Use the greedy decoding method you implemented in SequenceGenerator
-    - Post-process sequences using appropriate tokenizer methods
-    - Format results
-"""
-
 class LMTrainer(BaseTrainer):
+    """
+    Language Model Trainer class that handles the training, validation, and generation loops.
+
+    This trainer implements:
+    1. Training loop with gradient accumulation and mixed precision training
+    2. Validation loop for model evaluation
+    3. Generation capabilities with different decoding strategies
+
+    Implementation Tasks:
+    - TODO: Initialize the criterion in __init__
+    - TODO: Implement key parts of the training loop in _train_epoch
+    - TODO: Implement key parts of the the validation loop in _validate_epoch
+    - TODO: Implement key parts of the full training loop in train
+    - TODO: Use your greedy generation implementation in generate
+
+    Implementation Notes:
+    1. For __init__:
+        - Initialize CrossEntropyLoss with appropriate padding index and label smoothing
+        
+    2. For _train_epoch:
+        - Unpack the batch (shifted inputs, golden targets, lengths)
+        - Get model predictions and attention weights
+        - Calculate loss and normalize by accumulation steps
+        - Handle gradient accumulation correctly
+        
+    3. For _validate_epoch:
+        - Similar to _train_epoch but without gradient calculations
+        - Use torch.inference_mode() for validation
+        
+    4. For train:
+        - Initialize scheduler if not already done
+        - Implement the epoch loop with training and validation
+        - Handle model checkpointing and metric logging
+        
+    5. For generate:
+        - Use the greedy decoding method you implemented in SequenceGenerator
+        - Post-process sequences using appropriate tokenizer methods
+        - Format results
+    """
 
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
         super().__init__(model, tokenizer, config, run_name, config_file, device)
