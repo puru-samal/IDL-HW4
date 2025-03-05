@@ -5,21 +5,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 
-def _epochs_to_steps(epochs: int, train_loader: torch.utils.data.DataLoader) -> int:
+def _epochs_to_steps(epochs: int, train_loader: torch.utils.data.DataLoader, gradient_accumulation_steps: int = 1) -> int:
     """Convert epochs to total steps based on the train loader length."""
     return epochs * len(train_loader)
 
 def create_scheduler(
     optimizer: torch.optim.Optimizer,
     scheduler_config: Dict[str, Any],
-    train_loader: torch.utils.data.DataLoader
+    train_loader: torch.utils.data.DataLoader,
+    gradient_accumulation_steps: int = 1
 ) -> torch.optim.lr_scheduler._LRScheduler:
     """
     Create learning rate scheduler based on config settings.
     All schedulers except ReduceLROnPlateau are configured to be step-based.
     """
     scheduler_name = scheduler_config['name'].lower()
-    steps_per_epoch = len(train_loader)
+    steps_per_epoch = len(train_loader) // gradient_accumulation_steps
 
     print("\n📈 Configuring Learning Rate Scheduler:")
     print(f"├── Type: {scheduler_name.upper()}")
@@ -62,7 +63,7 @@ def create_scheduler(
     elif scheduler_name == 'cosine':
         cosine_config = scheduler_config['cosine']
         T_max_epochs = cosine_config.get('T_max', 60)
-        T_max_steps = _epochs_to_steps(T_max_epochs, train_loader)
+        T_max_steps = _epochs_to_steps(T_max_epochs, train_loader, gradient_accumulation_steps)
         
         print("├── Cosine Annealing Settings:")
         print(f"│   ├── T_max: {T_max_epochs} epochs ({T_max_steps} steps)")
@@ -78,7 +79,7 @@ def create_scheduler(
     elif scheduler_name == 'cosine_warm':
         warm_config = scheduler_config['cosine_warm']
         T_0_epochs = warm_config.get('T_0', 10)
-        T_0_steps = _epochs_to_steps(T_0_epochs, train_loader)
+        T_0_steps = _epochs_to_steps(T_0_epochs, train_loader, gradient_accumulation_steps)
         
         print("├── Cosine Annealing Warm Restarts Settings:")
         print(f"│   ├── T_0: {T_0_epochs} epochs ({T_0_steps} steps)")
@@ -160,6 +161,7 @@ def plot_lr_schedule(
     scheduler: torch.optim.lr_scheduler._LRScheduler,
     num_epochs: int,
     train_loader: torch.utils.data.DataLoader,
+    gradient_accumulation_steps: int = 1,
     max_groups: int = 5  # Maximum number of groups to plot
 ) -> None:
     """
@@ -169,6 +171,7 @@ def plot_lr_schedule(
         scheduler: The learning rate scheduler
         num_epochs: Total number of epochs to plot
         train_loader: Training data loader to determine steps per epoch
+        gradient_accumulation_steps: Number of gradient accumulation steps
         max_groups: Maximum number of parameter groups to plot
     """
     # Save initial states
@@ -204,7 +207,7 @@ def plot_lr_schedule(
         x = np.linspace(0, num_epochs, num_epochs * len(train_loader))
     else:
         # For step-based schedulers
-        total_steps = _epochs_to_steps(num_epochs, train_loader)
+        total_steps = _epochs_to_steps(num_epochs, train_loader, gradient_accumulation_steps)
         
         # Simulate training loop
         for step in range(total_steps):

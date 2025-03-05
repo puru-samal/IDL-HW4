@@ -14,6 +14,50 @@ from torch.utils.data import Subset
 
 
 class ASRTrainer(BaseTrainer):
+    """
+    ASR (Automatic Speech Recognition) Trainer class that handles training, validation, and recognition loops.
+
+    This trainer implements:
+    1. Training loop with gradient accumulation, mixed precision training, and optional CTC loss
+    2. Validation loop for model evaluation
+    3. Recognition capabilities with different decoding strategies (greedy, beam search)
+    4. Language model shallow fusion during recognition
+
+    Implementation Tasks:
+    - TODO: Initialize CE and CTC loss in __init__
+    - TODO: Implement key parts of the training loop in _train_epoch
+    - TODO: Implement key parts of the validation loop in _validate_epoch
+    - TODO: Implement key parts of the full training loop in train
+    - TODO: Implement recognition functionality in recognize
+    - TODO: Calculate ASR metrics in _calculate_asr_metrics
+
+    Implementation Notes:
+    1. For __init__:
+        - Initialize CrossEntropyLoss with appropriate padding index and label smoothing
+        - Initialize CTCLoss if ctc_weight > 0
+        
+    2. For _train_epoch:
+        - Unpack the batch (features, shifted targets, golden targets, lengths)
+        - Get model predictions, attention weights and CTC inputs
+        - Calculate CE loss and CTC loss if enabled
+        - Handle gradient accumulation correctly
+        
+    3. For _validate_epoch:
+        - Use recognize() to generate transcriptions
+        - Calculate WER, CER and word distance metrics
+        
+    4. For train:
+        - Initialize scheduler if not already done
+        - Set maximum transcript length
+        - Implement epoch loop with training and validation
+        - Handle model checkpointing and metric logging
+        
+    5. For recognize:
+        - Initialize sequence generator with appropriate scoring function
+        - Handle both greedy and beam search decoding
+        - Support language model shallow fusion
+        - Post-process sequences using tokenizer
+    """
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
         super().__init__(model, tokenizer, config, run_name, config_file, device)
         
@@ -31,6 +75,7 @@ class ASRTrainer(BaseTrainer):
                 blank=self.tokenizer.pad_id,
                 zero_infinity=True
             )
+
 
     def _train_epoch(self, dataloader):
         """
@@ -189,7 +234,8 @@ class ASRTrainer(BaseTrainer):
             self.scheduler = create_scheduler(
                 self.optimizer,
                 self.config['scheduler'],
-                train_dataloader
+                train_dataloader,
+                self.config['training']['gradient_accumulation_steps']
             )
 
         # TODO: Set max transcript length
@@ -204,8 +250,9 @@ class ASRTrainer(BaseTrainer):
         if epochs is None:
             epochs = self.config['training']['epochs']
 
-        for epoch in range(self.current_epoch, epochs):
-            self.current_epoch = epoch
+        for epoch in range(self.current_epoch, self.current_epoch + epochs):
+            
+            self.current_epoch += 1
 
             # TODO: Train for one epoch
             train_metrics, train_attn = self._train_epoch(train_dataloader)
@@ -255,16 +302,15 @@ class ASRTrainer(BaseTrainer):
                 self.best_metric = val_metrics['cer']
                 self.save_checkpoint('checkpoint-best-metric-model.pth') 
                 
-        # Final cleanup
-        self.cleanup()
 
-    def evaluate(self, dataloader, solution:Optional[List[str]] = None) -> Dict[str, Dict[str, float]]:
+    def evaluate(self, dataloader, solution:Optional[List[str]] = None, max_length: Optional[int] = None) -> Dict[str, Dict[str, float]]:
         """
         Evaluate the model on the test set.
         
         Args:
             dataloader: DataLoader for test data
             solution_json: Path to the JSON file containing the test set solutions
+            max_length: Optional[int], maximum length of the generated sequence
         Returns:
             Dictionary containing evaluation metrics and recognition results for each recognition config
         """
@@ -280,18 +326,24 @@ class ASRTrainer(BaseTrainer):
         eval_results = {}
         for config_name, config in recognition_configs.items():
             print(f"Evaluating with {config_name} config")
-            results = self.recognize(dataloader, config, config_name)
+            results = self.recognize(dataloader, config, config_name, max_length)
             assert len(results) == len(solution_data)
             
             # Calculate metrics on full batch
             generated = [r['generated'] for r in results]
             metrics = self._calculate_asr_metrics(solution_data, generated)
+            print("-"*50)
+            print(f"Config: {config_name}")
+            print(f"WER: {metrics['wer']:.2f}%")
+            print(f"CER: {metrics['cer']:.2f}%")
+            print(f"Word Distance: {metrics['word_dist']:.2f}")
+            print("-"*50)
             eval_results[config_name] = metrics
             self._save_generated_text(results, f'test_{config_name}_results')
         
         return eval_results
 
-    def recognize(self, dataloader, recognition_config: Optional[Dict[str, Any]] = None, config_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def recognize(self, dataloader, recognition_config: Optional[Dict[str, Any]] = None, config_name: Optional[str] = None, max_length: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Evaluate the model by generating transcriptions from audio features.
         
@@ -304,12 +356,13 @@ class ASRTrainer(BaseTrainer):
                 - repeat_penalty: float, repeat penalty for beam search
                 - lm_weight: float, language model interpolation weight
                 - lm_model: Optional[DecoderOnlyTransformer], language model for shallow fusion
+            max_length: Optional[int], maximum length of the generated sequence
         Returns:
             List of dictionaries containing recognition results with generated sequences and scores
             (targets included if available)
         """
-        if self.text_max_len is None:
-            raise ValueError("text_max_len is not set. Please run training loop first to set the max transcript length")
+        if max_length is None and not hasattr(self, 'text_max_len'):
+            raise ValueError("text_max_len is not set. Please run training loop first or provide a max_length")
 
         if recognition_config is None:
             # Default config (greedy search)
@@ -331,7 +384,7 @@ class ASRTrainer(BaseTrainer):
         generator = SequenceGenerator(
             score_fn=None,  # Will be set for each batch
             tokenizer=self.tokenizer,
-            max_length=self.text_max_len,
+            max_length=max_length if max_length is not None else self.text_max_len,
             device=self.device
         )
 
@@ -398,14 +451,14 @@ class ASRTrainer(BaseTrainer):
                     post_processed_targets = generator.post_process_sequence(targets_golden, self.tokenizer)
                     for j, (pred, target) in enumerate(zip(post_processed_preds, post_processed_targets)):
                         results.append({
-                            'target': self.tokenizer.decode(target.tolist()),
-                            'generated': self.tokenizer.decode(pred.tolist()[1:]),
+                            'target': self.tokenizer.decode(target.tolist(), skip_special_tokens=True),
+                            'generated': self.tokenizer.decode(pred.tolist(), skip_special_tokens=True),
                             'score': scores[j].item()
                         })
                 else:
                     for j, pred in enumerate(post_processed_preds):
                         results.append({
-                            'generated': self.tokenizer.decode(pred.tolist()[1:]),
+                            'generated': self.tokenizer.decode(pred.tolist(), skip_special_tokens=True),
                             'score': scores[j].item()
                         })
 
@@ -437,26 +490,20 @@ class ASRTrainer(BaseTrainer):
             'beam_width': 1,
         })
 
-        beam_8_config = common_config.copy()
-        beam_8_config.update({
-            'beam_width': 8,
+        beam_10_config = common_config.copy()
+        beam_10_config.update({
+            'beam_width': 10,
         })
         
-        beam_16_config = common_config.copy()
-        beam_16_config.update({
-            'beam_width': 16,
+        beam_20_config = common_config.copy()
+        beam_20_config.update({
+            'beam_width': 20,
         })
         
-        beam_32_config = common_config.copy()
-        beam_32_config.update({
-            'beam_width': 32,
-        })
-
         return {
             'greedy': greedy_config,
-            'beam_8': beam_8_config,
-            'beam_16': beam_16_config,
-            'beam_32': beam_32_config
+            'beam_10': beam_10_config,
+            'beam_20': beam_20_config
         }
         
     def _calculate_asr_metrics(self, references: Union[str, List[str]], hypotheses: Union[str, List[str]]) -> Tuple[float, float, float]:
@@ -487,6 +534,48 @@ class ASRTrainer(BaseTrainer):
     
 # INTERNAL USE ONLY
 class ProgressiveTrainer(ASRTrainer):
+    """
+    Progressive Trainer class that implements curriculum learning for ASR training.
+
+    This trainer extends ASRTrainer to implement:
+    1. Stage-based training with increasing model complexity
+    2. Gradual unfreezing of model layers
+    3. Dynamic data subsetting
+    4. Smooth transition to full model training
+
+    Implementation Tasks:
+    - TODO: Store original model layers in __init__
+    - TODO: Configure model for each stage in configure_stage
+    - TODO: Implement progressive training loop in progressive_train
+    - TODO: Handle transition to full training in transition_to_full_training
+    - TODO: Create data subsets in get_subset_dataloader
+
+    Implementation Notes:
+    1. For __init__:
+        - Store original encoder and decoder layers
+        - Initialize stage counter
+        
+    2. For configure_stage:
+        - Update dropout and label smoothing
+        - Activate specified encoder and decoder layers
+        - Handle layer freezing based on configuration
+        - Print detailed configuration information
+        
+    3. For progressive_train:
+        - Configure model for each stage
+        - Create appropriate data subset
+        - Train using parent class methods
+        
+    4. For transition_to_full_training:
+        - Restore all model layers
+        - Reset loss function parameters
+        - Unfreeze all parameters
+        - Reset best metrics
+        
+    5. For get_subset_dataloader:
+        - Create subset while preserving dataset attributes
+        - Maintain collate function and other dataloader settings
+    """
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
         super().__init__(model, tokenizer, config, run_name, config_file, device)
         self.current_stage = 0
@@ -497,56 +586,92 @@ class ProgressiveTrainer(ASRTrainer):
 
     def configure_stage(self, stage_config):
         """Configure model for current training stage"""
-        print(f"\n=== Starting Stage: {stage_config['name']} ===")
+        # Create a pretty header
+        print("\n" + "="*80)
+        print(f"Starting Stage: {stage_config['name']}".center(80))
+        print("="*80)
         
-        # Update time reduction
-        self.model.source_embedding.time_reduction = stage_config['time_reduction']
+        # Print key configuration details
+        print(f"\nConfiguration Details:")
+        print(f"├── Data Subset: {stage_config['data_subset']*100:.1f}% of training data")
+        print(f"├── Training Epochs: {stage_config['epochs']}")
+        print(f"├── Dropout: {stage_config['dropout']}")
+        print(f"├── Label Smoothing: {stage_config['label_smoothing']}")
         
-        # Update dropout
+        # Update dropout and label smoothing
         self.model.dropout.p = stage_config['dropout']
-        
-        # Update label smoothing
         self.ce_criterion = nn.CrossEntropyLoss(
             ignore_index=self.tokenizer.pad_id,
             label_smoothing=stage_config['label_smoothing']
         )
         
-        # Activate specified encoder layers
+        # Get freeze configurations
+        encoder_freeze = stage_config.get('encoder_freeze', [])
+        decoder_freeze = stage_config.get('decoder_freeze', [])
+        
+        # Activate and configure encoder layers
         encoder_active_layers = stage_config['encoder_active_layers']
+        if encoder_freeze and len(encoder_freeze) != len(encoder_active_layers):
+            raise ValueError(f"Encoder freeze list length ({len(encoder_freeze)}) must match number of active encoder layers ({len(encoder_active_layers)})")
+        
+        # Set the active encoder layers of the model
         self.model.enc_layers = nn.ModuleList([
             self.all_encoder_layers[i] for i in encoder_active_layers
         ])
         self.model.num_encoder_layers = len(encoder_active_layers)
-
-        # Activate specified decoder layers
+        
+        # Activate and configure decoder layers
         decoder_active_layers = stage_config['decoder_active_layers']
+        if decoder_freeze and len(decoder_freeze) != len(decoder_active_layers):
+            raise ValueError(f"Decoder freeze list length ({len(decoder_freeze)}) must match number of active decoder layers ({len(decoder_active_layers)})")
+        
+        # Set the active decoder layers of the model
         self.model.dec_layers = nn.ModuleList([
             self.all_decoder_layers[i] for i in decoder_active_layers
         ])
         self.model.num_decoder_layers = len(decoder_active_layers)
 
+        # Handle layer freezing
+        frozen_count = 0
+        trainable_count = 0
+        
+        # Configure encoder layers freezing
+        print("├── Encoder Layers:")
+        for idx, layer in enumerate(self.model.enc_layers):
+            should_freeze = encoder_freeze[idx]
+            for param in layer.parameters():
+                param.requires_grad = not should_freeze
+                if should_freeze:
+                    frozen_count += param.numel()
+                else:
+                    trainable_count += param.numel()
+            print(f"│   ├── Layer {encoder_active_layers[idx]}: {'Frozen' if should_freeze else 'Trainable'}")
+        
+        # Configure decoder layers
+        print("├── Decoder Layers:")
+        for idx, layer in enumerate(self.model.dec_layers):
+            should_freeze = decoder_freeze[idx]
+            for param in layer.parameters():
+                param.requires_grad = not should_freeze
+                if should_freeze:
+                    frozen_count += param.numel()
+                else:
+                    trainable_count += param.numel()
+            print(f"│   ├── Layer {decoder_active_layers[idx]}: {'Frozen' if should_freeze else 'Trainable'}")
+        
+        print(f"├── Frozen Parameters: {frozen_count:,}")
+        print(f"└── Trainable Parameters: {trainable_count:,}")
+    
+
     def progressive_train(self, train_dataloader, val_dataloader, stages: List[Dict[str, Any]]):
         """Progressive training through stages"""
-        # Setup warmup scheduler
-        warmup_epochs = 10
-        initial_lr = 1e-4
-        final_lr = 1e-3
-        
-        self.config['scheduler']['warmup'] = {
-            'enabled': True,
-            'epochs': warmup_epochs,
-            'start_factor': initial_lr / final_lr,
-            'end_factor': 1.0
-        }
-        
         # Train through stages
         for stage_idx, stage_config in enumerate(stages):
             self.current_stage = stage_idx
             self.configure_stage(stage_config)
             # Get subset of train_dataloader
-            train_dataloader = self.get_subset_dataloader(train_dataloader, stage_config['data_subset'])
-            super().train(train_dataloader, val_dataloader, epochs=stage_config['epochs'])
-
+            subset_train_dataloader = self.get_subset_dataloader(train_dataloader, stage_config['data_subset'])
+            super().train(subset_train_dataloader, val_dataloader, epochs=stage_config['epochs'])
 
     def transition_to_full_training(self):
         """Transition from progressive training to full training"""
@@ -557,24 +682,40 @@ class ProgressiveTrainer(ASRTrainer):
         self.model.dec_layers = nn.ModuleList(self.all_decoder_layers)
         self.model.num_encoder_layers = len(self.all_encoder_layers)
         self.model.num_decoder_layers = len(self.all_decoder_layers)
+
+        # Restore CrossEntropyLoss
+        self.ce_criterion = nn.CrossEntropyLoss(
+            ignore_index=self.tokenizer.pad_id,
+            label_smoothing=self.config['loss']['label_smoothing']
+        )
         
-        # Reset optimizer and scheduler
-        self.optimizer = create_optimizer(self.model, self.config['optimizer'])
-        self.scheduler = None  # Will be recreated in train()
+        # Unfreeze all parameters
+        unfrozen_count = 0
+        for param in self.model.parameters():
+            param.requires_grad = True
+            unfrozen_count += param.numel()
+        print(f"├── Total Unfrozen Parameters: {unfrozen_count:,}")
         
         # Reset best metrics for new training phase
         self.best_metric = float('inf')
 
     
     def train(self, train_dataloader, val_dataloader, epochs):
-        """Run full training phase"""
+        """
+        Run full training phase.
+        It is recommended to set the optimizer and scheduler explicitly before calling this function.
+        like this:
+        cls.optimizer = create_optimizer(self.model, self.config['optimizer'])
+        cls.scheduler = create_scheduler(cls.optimizer, cls.config['scheduler'], train_dataloader)
+        cls.progressive_train(train_dataloader, val_dataloader, stages)
+        """
         self.transition_to_full_training()
         super().train(train_dataloader, val_dataloader, epochs=epochs)
 
 
     def get_subset_dataloader(self, dataloader, subset_fraction):
         """
-        Creates a new DataLoader with a subset of the original data.
+        Creates a new DataLoader with a subset of the original data while preserving dataset attributes.
         
         Args:
             dataloader: Original DataLoader
@@ -594,15 +735,19 @@ class ProgressiveTrainer(ASRTrainer):
         # Create a Subset dataset
         subset_dataset = Subset(dataset, indices)
         
+        # Add necessary attributes from original dataset to subset
+        subset_dataset.text_max_len = dataset.text_max_len
+        subset_dataset.feat_max_len = dataset.feat_max_len
+        subset_dataset.get_avg_chars_per_token = dataset.get_avg_chars_per_token
+        
         # Create new DataLoader with same configuration as original
         subset_loader = torch.utils.data.DataLoader(
             subset_dataset,
-            batch_size=dataloader.batch_size,
-            shuffle=dataloader.shuffle,
-            num_workers=dataloader.num_workers,
-            collate_fn=dataloader.collate_fn,
-            pin_memory=dataloader.pin_memory,
-            drop_last=dataloader.drop_last
+            batch_size=self.config['data']['batch_size'],
+            shuffle=True,
+            num_workers=self.config['data']['NUM_WORKERS'],
+            collate_fn=dataset.collate_fn,
+            pin_memory=True
         )
         
         return subset_loader

@@ -14,63 +14,63 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, Tuple
 from torchinfo import summary
 
-"""
-Base Trainer class that provides common functionality for all trainers.
-
-This trainer implements:
-1. Experiment tracking and logging (with wandb support)
-2. Checkpoint management
-3. Metric logging and visualization
-4. Directory structure management
-5. Device handling
-
-Key Components:
-1. Experiment Management:
-   - Creates organized directory structure for experiments
-   - Handles config file copying and model architecture saving
-   - Manages checkpoint saving and loading
-   
-2. Logging and Visualization:
-   - Supports both local and wandb logging
-   - Saves attention visualizations
-   - Tracks training metrics and learning rates
-   - Saves generated text outputs
-   
-3. Training Infrastructure:
-   - Handles device placement
-   - Manages optimizer creation
-   - Supports gradient scaling for mixed precision
-   - Implements learning rate scheduling
-
-4. Abstract Methods (to be implemented by child classes):
-   - _train_epoch: Single training epoch implementation
-   - _validate_epoch: Single validation epoch implementation
-   - train: Full training loop implementation
-   - evaluate: Evaluation loop implementation
-
-Args:
-    model (nn.Module): The model to train
-    tokenizer (H4Tokenizer): Tokenizer for text processing
-    config (dict): Configuration dictionary
-    run_name (str): Name for the training run
-    config_file (str): Path to config file
-    device (Optional[str]): Device to run on ('cuda' or 'cpu')
-
-Directory Structure:
-    expts/
-    └── {run_name}/
-        ├── config.yaml
-        ├── model_arch.txt
-        ├── checkpoints/
-        │   ├── checkpoint-best-metric-model.pth
-        │   └── checkpoint-last-epoch-model.pth
-        ├── attn/
-        │   └── {attention visualizations}
-        └── text/
-            └── {generated text outputs}
-"""
 
 class BaseTrainer(ABC):
+    """
+    Base Trainer class that provides common functionality for all trainers.
+
+    This trainer implements:
+    1. Experiment tracking and logging (with wandb support)
+    2. Checkpoint management
+    3. Metric logging and visualization
+    4. Directory structure management
+    5. Device handling
+
+    Key Components:
+    1. Experiment Management:
+    - Creates organized directory structure for experiments
+    - Handles config file copying and model architecture saving
+    - Manages checkpoint saving and loading
+    
+    2. Logging and Visualization:
+    - Supports both local and wandb logging
+    - Saves attention visualizations
+    - Tracks training metrics and learning rates
+    - Saves generated text outputs
+    
+    3. Training Infrastructure:
+    - Handles device placement
+    - Manages optimizer creation
+    - Supports gradient scaling for mixed precision
+    - Implements learning rate scheduling
+
+    4. Abstract Methods (to be implemented by child classes):
+    - _train_epoch: Single training epoch implementation
+    - _validate_epoch: Single validation epoch implementation
+    - train: Full training loop implementation
+    - evaluate: Evaluation loop implementation
+
+    Args:
+        model (nn.Module): The model to train
+        tokenizer (H4Tokenizer): Tokenizer for text processing
+        config (dict): Configuration dictionary
+        run_name (str): Name for the training run
+        config_file (str): Path to config file
+        device (Optional[str]): Device to run on ('cuda' or 'cpu')
+
+    Directory Structure:
+        expts/
+        └── {run_name}/
+            ├── config.yaml
+            ├── model_arch.txt
+            ├── checkpoints/
+            │   ├── checkpoint-best-metric-model.pth
+            │   └── checkpoint-last-epoch-model.pth
+            ├── attn/
+            │   └── {attention visualizations}
+            └── text/
+                └── {generated text outputs}
+    """
     def __init__(
             self,
             model: nn.Module,
@@ -156,9 +156,9 @@ class BaseTrainer(ABC):
                 num_feats = self.config['data']['num_feats']
                 input_data = [
                     torch.randn(batch_size, max_len, num_feats).to(self.device), 
-                    torch.randint(0, 100, (batch_size, max_len//10)).to(self.device), 
-                    torch.randint(1, max_len, (batch_size,)).to(self.device), 
-                    torch.randint(1, max_len//10, (batch_size,)).to(self.device)
+                    torch.randint(0, self.model.num_classes, (batch_size, max_len//10)).to(self.device), 
+                    torch.randint(max_len//2, max_len, (batch_size,)).to(self.device), 
+                    torch.randint(max_len//20, max_len//10, (batch_size,)).to(self.device)
                 ]
                 dtypes = [torch.float32, torch.long, torch.long, torch.long]
                 # Generate the summary
@@ -301,7 +301,7 @@ class BaseTrainer(ABC):
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"No checkpoint found at {checkpoint_path}")
         
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=True)
         
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -318,5 +318,5 @@ class BaseTrainer(ABC):
 
     def cleanup(self):
         """Cleanup resources."""
-        if self.wandb_run:
+        if self.use_wandb and self.wandb_run:
             wandb.finish()
