@@ -303,13 +303,14 @@ class ASRTrainer(BaseTrainer):
                 self.save_checkpoint('checkpoint-best-metric-model.pth') 
                 
 
-    def evaluate(self, dataloader, solution:Optional[List[str]] = None) -> Dict[str, Dict[str, float]]:
+    def evaluate(self, dataloader, solution:Optional[List[str]] = None, max_length: Optional[int] = None) -> Dict[str, Dict[str, float]]:
         """
         Evaluate the model on the test set.
         
         Args:
             dataloader: DataLoader for test data
             solution_json: Path to the JSON file containing the test set solutions
+            max_length: Optional[int], maximum length of the generated sequence
         Returns:
             Dictionary containing evaluation metrics and recognition results for each recognition config
         """
@@ -325,7 +326,7 @@ class ASRTrainer(BaseTrainer):
         eval_results = {}
         for config_name, config in recognition_configs.items():
             print(f"Evaluating with {config_name} config")
-            results = self.recognize(dataloader, config, config_name)
+            results = self.recognize(dataloader, config, config_name, max_length)
             assert len(results) == len(solution_data)
             
             # Calculate metrics on full batch
@@ -342,7 +343,7 @@ class ASRTrainer(BaseTrainer):
         
         return eval_results
 
-    def recognize(self, dataloader, recognition_config: Optional[Dict[str, Any]] = None, config_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def recognize(self, dataloader, recognition_config: Optional[Dict[str, Any]] = None, config_name: Optional[str] = None, max_length: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Evaluate the model by generating transcriptions from audio features.
         
@@ -355,12 +356,13 @@ class ASRTrainer(BaseTrainer):
                 - repeat_penalty: float, repeat penalty for beam search
                 - lm_weight: float, language model interpolation weight
                 - lm_model: Optional[DecoderOnlyTransformer], language model for shallow fusion
+            max_length: Optional[int], maximum length of the generated sequence
         Returns:
             List of dictionaries containing recognition results with generated sequences and scores
             (targets included if available)
         """
-        if self.text_max_len is None:
-            raise ValueError("text_max_len is not set. Please run training loop first to set the max transcript length")
+        if self.text_max_len is None and max_length is None:
+            raise ValueError("text_max_len is not set. Please run training loop first or provide a max_length")
 
         if recognition_config is None:
             # Default config (greedy search)
@@ -382,7 +384,7 @@ class ASRTrainer(BaseTrainer):
         generator = SequenceGenerator(
             score_fn=None,  # Will be set for each batch
             tokenizer=self.tokenizer,
-            max_length=self.text_max_len,
+            max_length=max_length if max_length is not None else self.text_max_len,
             device=self.device
         )
 
