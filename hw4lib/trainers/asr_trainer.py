@@ -361,7 +361,7 @@ class ASRTrainer(BaseTrainer):
             List of dictionaries containing recognition results with generated sequences and scores
             (targets included if available)
         """
-        if self.text_max_len is None and max_length is None:
+        if max_length is None and not hasattr(self, 'text_max_len'):
             raise ValueError("text_max_len is not set. Please run training loop first or provide a max_length")
 
         if recognition_config is None:
