@@ -296,24 +296,78 @@ class BaseTrainer(ABC):
 
 
     def load_checkpoint(self, filename: str):
-        """Load a checkpoint."""
+        """
+        Load a checkpoint.
+        
+        Attempts to load each component of the checkpoint separately,
+        continuing even if some components fail to load.
+        """
         checkpoint_path = self.checkpoint_dir / filename
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"No checkpoint found at {checkpoint_path}")
         
-        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=True)
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=True)
+        except Exception as e:
+            raise RuntimeError(f"Failed to load checkpoint file: {e}")
+
+        # Dictionary to track loading status of each component
+        load_status = {}
+
+        # Try loading model state
+        try:
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            load_status['model'] = True
+        except Exception as e:
+            print(f"Warning: Failed to load model state: {e}")
+            load_status['model'] = False
+
+        # Try loading optimizer state
+        try:
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            load_status['optimizer'] = True
+        except Exception as e:
+            print(f"Warning: Failed to load optimizer state: {e}")
+            load_status['optimizer'] = False
+
+        # Try loading scheduler state if it exists
+        if checkpoint.get('scheduler_state_dict') and self.scheduler:
+            try:
+                self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+                load_status['scheduler'] = True
+            except Exception as e:
+                print(f"Warning: Failed to load scheduler state: {e}")
+                load_status['scheduler'] = False
+
+        # Try loading scaler state
+        try:
+            self.scaler.load_state_dict(checkpoint['scaler_state_dict'])
+            load_status['scaler'] = True
+        except Exception as e:
+            print(f"Warning: Failed to load scaler state: {e}")
+            load_status['scaler'] = False
+
+        # Try loading training state
+        try:
+            self.current_epoch = checkpoint['epoch']
+            self.best_metric = checkpoint['best_metric']
+            self.training_history = checkpoint['training_history']
+            load_status['training_state'] = True
+        except Exception as e:
+            print(f"Warning: Failed to load training state: {e}")
+            load_status['training_state'] = False
+
+        # Summarize what was loaded successfully
+        successful_loads = [k for k, v in load_status.items() if v]
+        failed_loads = [k for k, v in load_status.items() if not v]
         
-        self.model.load_state_dict(checkpoint['model_state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        if checkpoint['scheduler_state_dict'] and self.scheduler:
-            self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        self.scaler.load_state_dict(checkpoint['scaler_state_dict'])
+        if not successful_loads:
+            raise RuntimeError("Failed to load any checkpoint components")
         
-        self.current_epoch = checkpoint['epoch']
-        self.best_metric = checkpoint['best_metric']
-        self.training_history = checkpoint['training_history']
-        
-        print(f"Loaded checkpoint from epoch {self.current_epoch}")
+        print(f"Checkpoint loaded from epoch {checkpoint.get('epoch', 'unknown')}")
+        print(f"Successfully loaded: {', '.join(successful_loads)}")
+        if failed_loads:
+            print(f"Failed to load: {', '.join(failed_loads)}")
 
 
     def cleanup(self):

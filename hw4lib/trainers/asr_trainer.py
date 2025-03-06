@@ -332,6 +332,14 @@ class ASRTrainer(BaseTrainer):
             # Calculate metrics on full batch
             generated = [r['generated'] for r in results]
             metrics = self._calculate_asr_metrics(solution_data, generated)
+
+            # Log metrics
+            metrics = {
+                f'test_{config_name}': metrics
+            }
+            self._log_metrics(metrics, self.current_epoch)
+
+            # Print metrics
             print("-"*50)
             print(f"Config: {config_name}")
             print(f"WER: {metrics['wer']:.2f}%")
