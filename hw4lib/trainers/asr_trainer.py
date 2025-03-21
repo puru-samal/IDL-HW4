@@ -220,23 +220,20 @@ class ASRTrainer(BaseTrainer):
         
         return metrics, results
     
-    def train(self, train_dataloader, val_dataloader, epochs: Optional[int] = None):
+    def train(self, train_dataloader, val_dataloader, epochs: int):
         """
         Full training loop for ASR training.
         
         Args:
             train_dataloader: DataLoader for training data
             val_dataloader: DataLoader for validation data
-            epochs: Optional[int], number of epochs to train
+            epochs: int, number of epochs to train
         """
-        # Initialize learning rate scheduler if not already done
         if self.scheduler is None:
-            self.scheduler = create_scheduler(
-                self.optimizer,
-                self.config['scheduler'],
-                train_dataloader,
-                self.config['training']['gradient_accumulation_steps']
-            )
+            raise ValueError("Scheduler is not initialized, initialize it first!")
+        
+        if self.optimizer is None:
+            raise ValueError("Optimizer is not initialized, initialize it first!")
 
         # TODO: Set max transcript length
         self.text_max_len = max(val_dataloader.dataset.text_max_len, train_dataloader.dataset.text_max_len)
@@ -247,12 +244,7 @@ class ASRTrainer(BaseTrainer):
         best_val_cer  = float('inf')
         best_val_dist = float('inf')
 
-        if epochs is None:
-            epochs = self.config['training']['epochs']
-
         for epoch in range(self.current_epoch, self.current_epoch + epochs):
-            
-            self.current_epoch += 1
 
             # TODO: Train for one epoch
             train_metrics, train_attn = self._train_epoch(train_dataloader)
@@ -280,15 +272,15 @@ class ASRTrainer(BaseTrainer):
                 
                 if decoder_self_keys:
                     # Plot first layer (layer1) if available
-                    first_self_key = 'layer1_dec_self'
+                    first_self_key = decoder_self_keys[0]
                     if first_self_key in train_attn:
                         self._save_attention_plot(train_attn[first_self_key][0], epoch, "decoder_self")
                 
                 if decoder_cross_keys:
-                    # Plot first layer (layer1) if available
-                    first_cross_key = 'layer1_dec_cross'
-                    if first_cross_key in train_attn:
-                        self._save_attention_plot(train_attn[first_cross_key][0], epoch, "decoder_cross")
+                    # Plot last layer if available
+                    last_cross_key = decoder_cross_keys[-1]
+                    if last_cross_key in train_attn:
+                        self._save_attention_plot(train_attn[last_cross_key][0], epoch, "decoder_cross")
             
             # Save generated text
             self._save_generated_text(val_results, f'val_epoch_{epoch}')
@@ -301,6 +293,8 @@ class ASRTrainer(BaseTrainer):
                 best_val_cer = val_metrics['cer']
                 self.best_metric = val_metrics['cer']
                 self.save_checkpoint('checkpoint-best-metric-model.pth') 
+
+            self.current_epoch += 1
                 
 
     def evaluate(self, dataloader, solution:Optional[List[str]] = None, max_length: Optional[int] = None) -> Dict[str, Dict[str, float]]:
@@ -332,22 +326,15 @@ class ASRTrainer(BaseTrainer):
             # Calculate metrics on full batch
             generated = [r['generated'] for r in results]
             metrics = self._calculate_asr_metrics(solution_data, generated)
-
-            # Log metrics
-            metrics = {
-                f'test_{config_name}': metrics
-            }
-            self._log_metrics(metrics, self.current_epoch)
-
-            # Print metrics
-            print("-"*50)
-            print(f"Config: {config_name}")
-            print(f"WER: {metrics['wer']:.2f}%")
-            print(f"CER: {metrics['cer']:.2f}%")
-            print(f"Word Distance: {metrics['word_dist']:.2f}")
-            print("-"*50)
             eval_results[config_name] = metrics
             self._save_generated_text(results, f'test_{config_name}_results')
+
+            # Log metrics
+            self._log_metrics(
+                {
+                    f'test_{config_name}': metrics
+                }, self.current_epoch
+            )
         
         return eval_results
 

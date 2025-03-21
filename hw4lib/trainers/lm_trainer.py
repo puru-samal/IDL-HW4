@@ -213,33 +213,25 @@ class LMTrainer(BaseTrainer):
         }, attn_weights
         
 
-    def train(self, train_dataloader, val_dataloader, epochs: Optional[int] = None):
+    def train(self, train_dataloader, val_dataloader, epochs: int):
         """
         Full training loop for language model training.
         
         Args:
             train_dataloader: DataLoader for training data
             val_dataloader: DataLoader for validation data
-            epochs: Optional[int], number of epochs to train
+            epochs: int, number of epochs to train
         """
-        # Initialize learning rate scheduler if not already done
         if self.scheduler is None:
-            self.scheduler = create_scheduler(
-                self.optimizer,
-                self.config['scheduler'],
-                train_dataloader,
-                self.config['training']['gradient_accumulation_steps']
-            )
+            raise ValueError("Scheduler is not initialized, initialize it first!")
+        
+        if self.optimizer is None:
+            raise ValueError("Optimizer is not initialized, initialize it first!")
 
         # Training loop
         best_val_loss = float('inf')
 
-        if epochs is None:
-            # Find from config
-            epochs = self.config['training']['epochs']
-
-        for epoch in range(self.current_epoch, epochs):
-            self.current_epoch = epoch
+        for epoch in range(self.current_epoch, self.current_epoch + epochs):
             
             # TODO: Train for one epoch
             train_metrics, train_attn = self._train_epoch(train_dataloader)
@@ -279,6 +271,8 @@ class LMTrainer(BaseTrainer):
                 best_val_loss = val_loss
                 self.best_metric = val_loss
                 self.save_checkpoint('checkpoint-best-metric-model.pth')
+
+            self.current_epoch += 1
 
 
     def evaluate(self, test_dataloader):

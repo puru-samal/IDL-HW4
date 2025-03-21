@@ -79,3 +79,7 @@ cover/
 # Logs
 *.log
 logs/
+
+# Checkpoint files
+wandb/
+*.pth

@@ -91,7 +91,7 @@ class BaseTrainer(ABC):
         self.config = config
         
         # Initialize optimizer and scheduler
-        self.optimizer = create_optimizer(model, config['optimizer'])  # Should be set by child class
+        self.optimizer = None  # Should be set by child class
         self.scheduler = None  # Will be set when training starts
         self.scaler = torch.amp.GradScaler(device=self.device)
         self.use_wandb = config['training'].get('use_wandb', False)
