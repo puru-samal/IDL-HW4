@@ -40,14 +40,14 @@ class SelfAttentionLayer(nn.Module):
             dropout (float): The dropout rate.
         '''
         super().__init__()
-        # TODO: Initialize the multi-head attention mechanism
+        # TODO: Initialize the multi-head attention mechanism (use nn.MultiheadAttention)
         self.mha        = nn.MultiheadAttention(
             embed_dim   = d_model,
             num_heads   = num_heads,
             dropout     = dropout,
             batch_first = True
         )
-        # TODO: Initialize the normalization layer
+        # TODO: Initialize the normalization layer (use nn.LayerNorm)
         self.norm    = nn.LayerNorm(d_model)
         # TODO: Initialize the dropout layer
         self.dropout = nn.Dropout(dropout)
@@ -109,14 +109,14 @@ class CrossAttentionLayer(nn.Module):
             dropout (float): The dropout rate.
         '''
         super().__init__()
-        # TODO: Initialize the multi-head attention mechanism
+        # TODO: Initialize the multi-head attention mechanism (use nn.MultiheadAttention)
         self.mha         = nn.MultiheadAttention(
             embed_dim    = d_model,
             num_heads    = num_heads,
             dropout      = dropout,
             batch_first  = True
         )   
-        # TODO: Initialize the normalization layer
+        # TODO: Initialize the normalization layer (use nn.LayerNorm)
         self.norm        = nn.LayerNorm(d_model)
         # TODO: Initialize the dropout layer
         self.dropout     = nn.Dropout(dropout)

@@ -39,7 +39,7 @@ The H4Tokenizer class provides tokenization functionality for the homework.
    - Displays configuration and special token IDs
 
 Usage:
-- Used by LMDataset to process text data
+- Used by LMDataset and ASRDataset to process text data
 - Ensures consistent tokenization across training/validation
 - Handles special token addition and sequence conversion
 '''

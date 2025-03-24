@@ -6,6 +6,10 @@ class ScaledDotProductAttention:
     Scaled Dot Product Attention
     """ 
     def __init__(self):
+        '''
+        Initialize the ScaledDotProductAttention class.
+        '''
+        # DO NOT MODIFY
         self.softmax = Softmax(dim=-1)
         self.eps = 1e-100
     
@@ -17,6 +21,7 @@ class ScaledDotProductAttention:
         :param mask: Boolean mask matrix of shape (N, ..., Hq, L, S) or broadcastable shape
         :return: Output matrix of shape (N, ..., Hq, L, Ev)
         """
+        # Store inputs for backward pass
         self.Q = Q
         self.K = K
         self.V = V
@@ -28,11 +33,9 @@ class ScaledDotProductAttention:
         self.L  = Q.shape[-2] # target sequence length
         self.S  = K.shape[-2] # source sequence length
         
-        # Transpose K to swap last two dimensions
-        K_t = np.transpose(K, (0, 1, 3, 2))  # (..., H, E, S)
-
         # Calculate attention scores: (..., Hq, L, S)
-        attention_scores = Q @ K_t / np.sqrt(self.E) # (..., Hq, L, S)
+        # (..., Hq, L, E) @ (..., H, E, S) -> (..., Hq, L, S)
+        attention_scores = Q @  np.transpose(K, (0, 1, 3, 2)) / np.sqrt(self.E)
         
         # Apply mask before softmax if provided
         attention_scores_masked = None
@@ -48,6 +51,7 @@ class ScaledDotProductAttention:
         self.softmax_output = softmax
         
         # Calculate output: (..., Hq, L, Ev)
+        # (..., Hq, L, S) @ (..., H, S, Ev) -> (..., Hq, L, Ev) 
         self.output = self.softmax_output @ V
         return self.output
     
@@ -57,13 +61,13 @@ class ScaledDotProductAttention:
         :return: Gradient of loss wrt input Q, K, V
         """
         # Calculate gradients for V: (..., H, S, Ev)
-        # (..., Hq, L, S) @ (..., Hq, L, Ev) -> (..., H, S, Ev) 
+        # (..., Hq, S, L) @ (..., Hq, L, Ev) -> (..., H, S, Ev) 
         # Use the transpose of stored softmax output to swap last two dimensions   
         d_V = np.transpose(self.softmax_output, (0, 1, 3, 2)) @ d_output
         
         # Calculate gradients for attention scores
-        V_t = np.transpose(self.V, (0, 1, 3, 2))  # (..., H, Ev, S)
-        d_softmax = d_output @ V_t  # (..., Hq, L, S)
+        # (..., Hq, L, Ev) @ (..., H, Ev, S) -> (..., Hq, L, S)
+        d_softmax = d_output @ np.transpose(self.V, (0, 1, 3, 2))
         d_attention_scores_masked = self.softmax.backward(d_softmax)
         
         # Apply mask to gradients if mask was used in forward pass
@@ -72,12 +76,14 @@ class ScaledDotProductAttention:
         else:
             d_attention_scores = d_attention_scores_masked
 
-        # Scale gradients
+        # Scale gradients by sqrt(d_k)
         d_attention_scores = d_attention_scores / np.sqrt(self.E)
         
         # Calculate gradients for Q and K
-        d_Q = d_attention_scores @ self.K  # (..., Hq, L, E)
-        d_K = np.transpose(d_attention_scores, (0, 1, 3, 2)) @ self.Q  # (..., H, S, E)
+        # (..., Hq, L, S) @ (..., H, S, E) -> (..., Hq, L, E)   
+        d_Q = d_attention_scores @ self.K 
+        # (..., Hq, L, S) @ (..., Hq, L, E) -> (..., H, S, E)
+        d_K = np.transpose(d_attention_scores, (0, 1, 3, 2)) @ self.Q 
         
         return d_Q, d_K, d_V
 

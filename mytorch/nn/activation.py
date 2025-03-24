@@ -19,6 +19,12 @@ class Softmax:
         if self.dim > len(Z.shape) or self.dim < -len(Z.shape):
             raise ValueError("Dimension to apply softmax to is greater than the number of dimensions in Z")
 
+        '''
+        # TODO: Implement the forward pass for the Softmax activation function.
+        # NOTE: Make sure you implement this in a numerically stable way.
+        # NOTE: Make sure you apply the softmax to the dimension specified by the `dim` parameter.
+        self.A = raise NotImplementedError("Forward pass not implemented")
+        '''
         self.A = np.exp(Z - np.max(Z, axis=self.dim, keepdims=True))
         self.A /= np.sum(self.A, axis=self.dim, keepdims=True) + 1e-8
         return self.A
@@ -28,9 +34,17 @@ class Softmax:
         :param dLdA: Gradient of loss wrt post-activation output
         :return: Gradient of loss with respect to pre-activation input
         """
+
+        '''
+        # TODO: Implement the backward pass for the Softmax activation function.
+        shape = self.A.shape
+        C = shape[self.dim]
+        self.dLdZ = raise NotImplementedError("Backward pass not implemented")
+        '''
         # Get the shape of the input
         shape = self.A.shape
-        C = shape[self.dim] if self.dim != -1 else shape[-1]
+        # Find the dimension along which softmax was applied
+        C = shape[self.dim]
            
         # Reshape input to 2D if necessary
         if len(shape) > 2:

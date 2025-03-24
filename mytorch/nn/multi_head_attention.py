@@ -19,19 +19,19 @@ class MultiHeadAttention:
         self.num_heads = num_heads
         self.attention = ScaledDotProductAttention()
 
-        self.q_proj_weight   = Linear(embed_dim, embed_dim)
-        self.k_proj_weight   = Linear(embed_dim, embed_dim)
-        self.v_proj_weight   = Linear(embed_dim, embed_dim)
-        self.out_proj_weight = Linear(embed_dim, embed_dim)
+        self.q_proj   = Linear(embed_dim, embed_dim)
+        self.k_proj   = Linear(embed_dim, embed_dim)
+        self.v_proj   = Linear(embed_dim, embed_dim)
+        self.out_proj = Linear(embed_dim, embed_dim)
 
     def init_weights(self, Wq, bq, Wk, bk, Wv, bv, Wo, bo):
         """
         Initialize the weights and biases with the given values.
         """
-        self.q_proj_weight.init_weights(Wq, bq)
-        self.k_proj_weight.init_weights(Wk, bk)
-        self.v_proj_weight.init_weights(Wv, bv)
-        self.out_proj_weight.init_weights(Wo, bo)
+        self.q_proj.init_weights(Wq, bq)
+        self.k_proj.init_weights(Wk, bk)
+        self.v_proj.init_weights(Wv, bv)
+        self.out_proj.init_weights(Wo, bo)
 
     def forward(self, query, key, value, key_padding_mask=None, attn_mask=None):
         """
@@ -48,17 +48,17 @@ class MultiHeadAttention:
         self.S = key.shape[1]
         self.E = query.shape[2]
 
-        # Reshape q, k,v to (-1, embed_dim) to apply mytorch's linear layer
+        # Reshape q, k, v to (-1, embed_dim) to apply mytorch's linear layer
         query = query.reshape(-1, self.E)
         key   = key.reshape(-1, self.E)
         value = value.reshape(-1, self.E)
         
         # Project the input into query, key, and value
-        q = self.q_proj_weight.forward(query) # (N*L, embed_dim)
-        k = self.k_proj_weight.forward(key)   # (N*S, embed_dim)
-        v = self.v_proj_weight.forward(value) # (N*S, embed_dim)
+        q = self.q_proj.forward(query) # (N*L, embed_dim)
+        k = self.k_proj.forward(key)   # (N*S, embed_dim)
+        v = self.v_proj.forward(value) # (N*S, embed_dim)
 
-        # Reshape q, k,v back to (N, L, embed_dim)
+        # Reshape q, k, v back to (N, L, embed_dim)
         q = q.reshape(self.N, self.L, self.E) # (N, L, embed_dim)   
         k = k.reshape(self.N, self.S, self.E) # (N, S, embed_dim)
         v = v.reshape(self.N, self.S, self.E) # (N, S, embed_dim)
@@ -81,7 +81,7 @@ class MultiHeadAttention:
         attn_output = attn_output.reshape(-1, self.E)
 
         # Project the attention outputs
-        output = self.out_proj_weight.forward(attn_output)        # (N, L, embed_dim)
+        output = self.out_proj.forward(attn_output)        # (N, L, embed_dim)
 
         # Reshape output back to (N, L, embed_dim)
         output = output.reshape(self.N, self.L, self.E)
@@ -97,7 +97,7 @@ class MultiHeadAttention:
         d_output = d_output.reshape(-1, self.E) # (N*L, embed_dim)
 
         # Backpropagate through the output projection   
-        d_attn_output = self.out_proj_weight.backward(d_output)  # (N*L, embed_dim) 
+        d_attn_output = self.out_proj.backward(d_output)  # (N*L, embed_dim) 
 
         # Reshape d_attn_output back to (N, L, embed_dim)
         d_attn_output = d_attn_output.reshape(self.N, self.L, self.E) # (N, L, embed_dim)   
@@ -119,9 +119,9 @@ class MultiHeadAttention:
         d_v = d_v.reshape(-1, self.E) # (N*S, embed_dim)
 
         # Backpropagate through the input projections   
-        d_q = self.q_proj_weight.backward(d_q) # (N, L, embed_dim)
-        d_k = self.k_proj_weight.backward(d_k) # (N, S, embed_dim)
-        d_v = self.v_proj_weight.backward(d_v) # (N, S, embed_dim)
+        d_q = self.q_proj.backward(d_q) # (N, L, embed_dim)
+        d_k = self.k_proj.backward(d_k) # (N, S, embed_dim)
+        d_v = self.v_proj.backward(d_v) # (N, S, embed_dim)
 
         # Reshape d_q, d_k, d_v back to (N, L, embed_dim), (N, S, embed_dim), (N, S, embed_dim)
         d_q = d_q.reshape(self.N, self.L, self.E) # (N, L, embed_dim)
