@@ -18,7 +18,194 @@ This should be the directory structure from your project root directory:
 
 ```
 
-## HW4P1
+## HW4P1: Autoregressive Language Modeling with a Causal Transformer Decoder
+
+Welcome to HW4P1! In this assignment, you will build almost all the components of a **decoder-only transformer** model (think GPT-2!) from scratch, train it on an autoregressive language modeling task, and use it to generate text. This will be a monumental task, but we promise it will be a rewarding one. We will break down this task into several smaller tasks, each of which will build on the last. Also, a lot of the components you will implement will be reusable in HW4P2. We will begin with an overview of the training objective, evaluation and inference before breaking down the implementation into several smaller tasks.
+
+**WARNING**: This assignment is designed to be significantly more challenging than previous assignments. We recommend you start early and reach out on Piazza if you get stuck.
+
+### Training Objective
+
+We aim to train a **decoder-only transformer** to model the probability of a sequence of tokens autoregressively:
+
+$$
+P(x_{1}, ..., x_{N}) = \prod_{t=1}^{N} P(x_{t} | x_{1}, ..., x_{t-1})
+$$
+
+where $x_1, ..., x_N$ represents a sequence of tokens, and each conditional probability $P(x_t | x_1, ..., x_{t-1})$ is modeled using our transformer.
+
+---
+
+#### Training with Self-Supervision
+We train the model using a large corpus of **unlabeled text**. Given a token sequence $x_1, ..., x_N$, the target is $x_{N+1}$, the next token in the sequence. Instead of processing each training sample independently, we train on **entire sequences in parallel**, where each token serves as both an input and a target.
+
+###### **Example**
+For the sentence:
+
+> "`<SOS>` I swam across the river `<EOS>`"
+
+- **Input:** \["`<SOS>`", "I", "swam", "across", "the"\] → **Target:** "river"
+- **Input:** \["I", "swam", "across", "the", "river"\] → **Target:** "`<EOS>`"
+- …and so on.
+
+This **parallel processing improves efficiency** but requires mechanisms to prevent **cheating** (i.e., directly copying the next token).
+
+#### Preventing Information Leakage
+To ensure the model **does not access future tokens during training**, we apply:
+1. **Start and End Tokens:**  
+   - Prepend a special **start-of-sequence** token $ \langle \text{SOS} \rangle $ to the **input sequence**.
+   - Append an **end-of-sequence** token $ \langle \text{EOS} \rangle $ to the **target sequence**.  
+   - This shifts the input sequence **rightward**, aligning it with the target.
+
+2. **Causal Masking:**  
+   - In the transformer's **self-attention layers**, a **causal mask** is applied to ensure each token **only attends to past tokens**.
+   - This prevents information from future tokens from leaking into the model.
+
+3. **Padding and Pad Masks:**  
+   - Since GPUs require **fixed-length tensors**, shorter sequences are **padded** using a special $ \langle \text{PAD} \rangle $ token.
+   - A **pad mask** ensures that these padded positions do not influence predictions.
+
+---
+
+#### Training Process
+##### 1. Token Embedding
+Each token in the input sequence is converted into a sequence of $D$-dimensional embedding vectors using the model's embedding layer:
+
+$$
+x_1, ..., x_N \in \{1, ..., K\} \rightarrow E(x_1), ..., E(x_N) \in \mathbb{R}^{D}
+$$
+
+where:
+- $K$ is the vocabulary size.
+- $E(x_i)$ represents the learned embedding for token $x_i$.
+- Implemented using PyTorch’s `nn.Embedding`.
+
+##### 2. Transformer Processing
+The sequence of **D-dimensional embeddings** is injected with **positional encodings** and passed through **decoder layers**, applying **self-attention, feedforward transformations, and masking**.
+
+##### 3. Output Logits
+The model produces a sequence of hidden states $ \tilde{x}_1, ..., \tilde{x}_N $, each of dimensionality $ D $.
+
+To obtain logits over the vocabulary ($K$), we apply a **final linear transformation**:
+
+$$
+Y = X W^{(p)}
+$$
+
+where:
+- $W^{(p)} \in \mathbb{R}^{D \times K}$ is the **projection matrix**.
+- $X \in \mathbb{R}^{N \times D}$ is the model's hidden state output.
+- $Y \in \mathbb{R}^{N \times K}$ are **logits**, representing unnormalized scores over the vocabulary.
+
+###### 4. Softmax and Cross-Entropy Loss
+We apply the **softmax function** to obtain probabilities:
+
+$$
+P(x_t | x_1, ..., x_{t-1}) = \text{softmax}(Y_t)
+$$
+
+However, **we do not explicitly compute softmax in the code**. Instead, PyTorch’s `nn.CrossEntropyLoss`:
+- Takes the **raw logits** $Y$ and the **ground-truth token sequence**.
+- **Internally applies softmax** before computing the loss.
+
+#### Summary of Key Steps
+1. **Prepare input-target pairs** by shifting sequences and applying **causal and pad masking**.
+2. Convert token sequences into embeddings.
+3. Inject embeddings with **positional encodings**.
+4. Process embeddings using **decoder-only transformer layers**.
+5. Apply a **final linear layer** to obtain logits of shape $(N, K)$.
+6. Compute **cross-entropy loss** using raw logits and target tokens.
+
+This training approach **maximizes the likelihood of the training data** and enables the model to learn meaningful token dependencies in an **autoregressive manner**.
+
+### Evaluation: Measuring Language Model Performance
+
+To evaluate the quality of our **decoder-only transformer**, we need a metric that captures how well the model predicts the next token in a sequence. One intuitive way to do this is by measuring how **surprising** the model finds a sequence of text.
+
+#### Perplexity: How Confused Is Our Model?
+
+A good language model should assign high probability to reasonable continuations of a sentence and low probability to nonsensical ones. Consider the phrase:  
+
+> _"It is raining..."_  
+
+Different language models might predict:  
+
+1. _"It is raining outside."_ ✅ (Logical and grammatically correct)  
+2. _"It is raining banana tree."_ 🤨 (Strange, but at least valid words)  
+3. _"It is raining piouw;kcj pwepoiut."_ ❌ (Total gibberish)  
+
+The first continuation is the best, as it aligns with real-world language patterns. A well-trained model should maximize the likelihood of producing sensible text.  
+
+#### Cross-Entropy and Perplexity
+
+We formally evaluate our model using **cross-entropy loss**, which measures how well it predicts each token in a sequence. Given a sequence of tokens $ x_1, \dots, x_N $, the cross-entropy loss is:  
+
+$$
+\mathcal{L} = - \frac{1}{N} \sum_{t=1}^{N} \log P(x_t | x_1, ..., x_{t-1})
+$$  
+
+where:  
+- $ P(x_t | x_1, ..., x_{t-1}) $ is the probability assigned by the model to the correct next token.  
+
+Instead of reporting cross-entropy directly, NLP researchers often use **perplexity (PPL)**, which is simply the exponentiation of the cross-entropy loss:  
+
+$$
+\text{Perplexity} = e^{\mathcal{L}}
+$$  
+
+Intuitively, perplexity represents the **effective number of choices** the model considers at each step:  
+
+- **Perfect model:** Always assigns probability 1 to the correct token → **Perplexity = 1**  
+- **Worst model:** Predicts the correct token with probability 0 → **Perplexity = ∞**  
+- **Baseline:** Uniform probability over all tokens in the vocabulary → **Perplexity ≈ Vocabulary Size**  
+
+You will be reporting **per-character perplexity** instead of per-token perplexity. This ensures consistency across different vocabulary sizes and sequence lengths.
+
+### Generation: Sampling Strategies
+
+After training the model, we can use it to generate text! When generating sequences, a transformer decoder outputs a probability distribution for the next token. To extend the sequence, a particular token must be chosen based on these probabilities. Here are a few sampling strategies:
+
+#### 1. **Greedy Search**  
+Greedy search selects the token with the highest probability at each step. While efficient with a complexity of $O(KN)$, it is deterministic and can lead to suboptimal sequences, as it doesn't maximize the joint distribution over all tokens.
+
+#### 2. **Beam Search**  
+Beam search maintains $B$ hypotheses and explores multiple token sequences by considering the top $B$ most probable tokens at each step. The most probable sequence is chosen after pruning. Its complexity is $O(BKN)$, but it can be computationally expensive for large models.
+
+#### 3. **Top-K Sampling**  
+Top-K sampling samples from the top $K$ most probable tokens at each step, allowing for more diversity compared to greedy search. It helps prevent the generation of nonsensical sequences while controlling the exploration of less likely tokens.
+
+#### 4. **Nucleus Sampling (Top-p Sampling)**  
+Nucleus sampling selects tokens from a cumulative distribution of the top $K$ tokens, stopping once a threshold $p$ is reached. This strategy focuses on the most probable tokens while maintaining flexibility for diverse outputs.
+
+#### 5. **Temperature Sampling**  
+Temperature scaling softens the probabilities by introducing a temperature parameter $T$ in the softmax function. A temperature of $T = 0$ results in greedy search, while $T = 1$ recovers the standard softmax. As $T$ increases, the distribution becomes more uniform, encouraging more exploration of less probable tokens.
+
+Each of these strategies can be used depending on the trade-off between diversity and determinism, and the goal of the generated sequences.
+
+  
+### Tasks:
+
+The following sections will now describe the tasks you will need to complete for this assignment. Let us begin with an overview:
+
+- Task 1: MyTorch Implementations
+  - Modify your `Linear` implementation from HW1P1 to support arbitrary dimensions
+  - Implement a generic `Softmax` class that supports arbitrary dimensions
+  - Implement the `ScaledDotProductAttention` class
+  - Implement the `MultiHeadAttention` class
+
+- Task 2: Language Modelling with a Causal Transformer Decoder
+  - Implement the `LMDataset` class to load and preprocess the data
+  - Implement the `CausalMask` and `PadMask` functions to handle masking
+  - Implement the `PositionalEncoding` class to handle positional encodings
+  - Implement Transformer sublayers: `SelfAttentionLayer` and `FeedForwardLayer`, components of the `SelfAttentionDecoderLayer`
+  - Implement Transformer layer: `SelfAttentionDecoderLayer`
+  - Implement the `DecoderOnlyTransformer` class
+  - Implement `Greedy` decoding
+  - Implement parts of `LMTrainer`
+  - Train the model on the dataset
+  - Achieve a per-character perplexity of less than **3.5** on the test set
+  - Generate some sample text using the model
+
 
 > `NOTE`: All implementations have detailed specification, implementation details, and hints in their respective source files. Make sure to read all the comments and docstrings in their entirety to understand the implementation details!
 
@@ -29,10 +216,39 @@ In `HW4P1` and `HW4P2`, you will build and train Transformer models using PyTorc
 We recommend developing the components incrementally and using the command provided in the `MyTorch Implementations` cell of `HW4P1_nb.ipynb` to test your implementation.
 
 #### 1.1 Linear Layer (`mytorch/nn/linear.py`)
-There is nothing to implement for this section. Simply copy-paste your implementation of `Linear` from previous assignments into `mytorch/nn/linear.py`.
+In HW1P1, you implemented a `Linear` layer that took a 2D array of shape `(N, C)` and computed the linear transformation of each element over the `C` classes. In this assignment, In order to be able to use the `Linear` layer in the `MultiHeadAttention` class, you will implement a more generic `Linear` class in `mytorch/nn/linear.py`, where the number of dimensions of the input can be arbitrary. The implementation will largely be the same as HW1P1 but with a few key differences. Feel free to use your HW1P1 implementation as a reference.
 
-#### 1.2 Generic Softmax (`mytorch/nn/activation.py`)
-In HW1P1, you implemented a `Softmax` activation function that took a 2D array of shape `(N, C)` and computed the softmax of each element over the `C` classes. In this assignment, you will implement a more general `Softmax` class in `mytorch/nn/activation.py`, where the number of dimensions of the input can be arbitrary and the softmax can be computed over any dimension. The implementation will largely be the same as HW1P1 but with a few key differences. 
+##### 1.1.1 Forward Pass
+Your input tensor **A**  will be of shape `(*batch_dims, in_features)` where `*batch_dims` is a variable number of dimensions. We recommend taking the following approach:
+
+1. Store the original shape of the input tensor in the `input_shape` attribute.
+2. Flatten the input tensor to 2D of shape `(batch_size, in_features)` where `batch_size = prod(*batch_dims)`, 
+3. Perform the affine transformation, 
+4. And then reshape the output back to the original shape.
+
+
+##### 1.1.2 Backward Pass
+The gradient of the loss with respect to the output **Z** will be of shape `(*batch_dims, out_features)`. We recommend taking the following approach:
+
+1. Reshape the gradient to 2D of shape `(batch_size, out_features)` where `batch_size = prod(*batch_dims)`
+2. Reshape the input tensor you stored in the forward pass to 2D of shape `(batch_size, in_features)` where `batch_size = prod(*batch_dims)`
+3. Compute the gradient of the loss with respect to the input using the chain rule as you did in HW1P1.
+- $$
+  \frac{\partial L}{\partial A} = \frac{\partial L}{\partial Z} \cdot W
+$$ 
+- $$
+  \frac{\partial L}{\partial W} = (\frac{\partial L}{\partial Z})^T \cdot A
+$$
+- $$
+  \frac{\partial L}{\partial b} = \sum\limits_{i=1}^{B} \frac{\partial L}{\partial Z_{i}}
+$$
+    where $B$ is the batch size.
+
+4. And then reshape the gradient with respect to the input back to the original shape.
+
+
+#### 1.2 Softmax (`mytorch/nn/activation.py`)
+In HW1P1, you implemented a `Softmax` activation function that took a 2D array of shape `(N, C)` and computed the softmax of each element over the `C` classes. In this assignment, In order to be able to use the `Softmax` class in the `ScaledDotProductAttention` class, you will implement a more general `Softmax` class in `mytorch/nn/activation.py`, where the number of dimensions of the input can be arbitrary and the softmax can be computed over any dimension. The implementation will largely be the same as HW1P1 but with a few key differences. Feel free to use your HW1P1 implementation as a reference.
 
 ##### 1.2.1 Forward Pass
 
@@ -85,9 +301,13 @@ If the input tensor **Z** has shape `(N, C, H, W)` and softmax was applied along
 
 Implement the scaled-dot product attention in `mytorch/nn/scaled_dot_product_attention.py` in a setting similar to what you will deal with in `HW4P1` and `HW4P2`.
 
+**Hint**: Let the shape annotations guide you.
+
 ##### 1.3.1 Forward Pass
 
-Implement the `forward` method for the `ScaledDotProductAttention` class in `mytorch/nn/scaled_dot_product_attention.py`.
+Implement the `forward` method for the `ScaledDotProductAttention` class in `mytorch/nn/scaled_dot_product_attention.py`. The operation is visualized below:
+<img src="figures/sdpa.png" alt="Scaled Dot-Product Attention" width="500" height="300" style="background-color: white;"/>
+
 The scaled dot-product attention is computed as:
 
 $$
@@ -97,26 +317,24 @@ $$
 where, **Q**, **K**, and **V** are the query, key, and value matrices respectively and $d_k$ is the embedding dimension of the query and key matrices.
 
 In our setting, we have:
-- A query matrix **Q** of shape `(N, ..., Hq, L, E)`
+- A query matrix **Q** of shape `(N, ..., H, L, E)`
 - A key matrix **K** of shape `(N, ..., H, S, E)`
 - A value matrix **V** of shape `(N, ..., H, S, Ev)`
 - Optionally, we will have a boolean mask matrix **M** of shape `(N, ..., H, L, S)`
 
 where:
 - `N` is the batch size
-- `Hq` is the number of attention heads for the query
-- `H` is the number of attention heads for the key
+- `H` is the number of attention heads for the key and value
 - `L` is the length of the target sequence
 - `S` is the length of the source sequence
 - `E` is the embedding dimension
 - `Ev` is the value dimension
 
 
-Where, the output is of shape `(N, ..., H, L, Ev)`. If a mask if provided, be use to use it to set the attention scores prior to applying the softmax to `-self.eps` for positions that should not be attended to (i.e. `mask == True`) and leave the rest of the scores unchanged. 
+Where, the output is of shape `(N, ..., H, L, Ev)`. If a mask if provided, use it to add `-self.eps` to the attention scores for positions that should not be attended to (i.e. `mask == True`) and leave the rest of the scores unchanged. 
 
-- `NOTE`: Remember to store the softmax output for the backward pass.
+- `NOTE`: Remember to store the attention scores for the backward pass.
 - `NOTE`: The code refers to the input of the softmax function as the attention scores.
-
 
 ##### 1.3.2 Backward Pass
 
@@ -134,35 +352,31 @@ $$
 \frac{\partial L}{\partial A} = \frac{\partial L}{\partial O} \cdot V^T
 $$
 
-3. Gradient with respect to pre-softmax inputs:
+3. Gradient with respect to the scaled dot-product:
 $$
-\frac{\partial L}{\partial I} = \text{softmax\_backward}(\frac{\partial L}{\partial A})
+\frac{\partial L}{\partial S} = \text{softmax\_backward}(\frac{\partial L}{\partial A})
 $$
 
 4. Gradient with respect to Q:
 $$
-\frac{\partial L}{\partial Q} = (\frac{\partial L}{\partial I} \cdot \frac{1}{\sqrt{d_k}}) \cdot K
+\frac{\partial L}{\partial Q} = (\frac{\partial L}{\partial S} \cdot \frac{1}{\sqrt{d_k}}) \cdot K
 $$
 
 5. Gradient with respect to K:
 $$
-\frac{\partial L}{\partial K} = (\frac{\partial L}{\partial I} \cdot \frac{1}{\sqrt{d_k}})^T \cdot Q
+\frac{\partial L}{\partial K} = (\frac{\partial L}{\partial S} \cdot \frac{1}{\sqrt{d_k}})^T \cdot Q
 $$
 
 Where:
-- $A$: Output of the softmax function
+- $A$: Attention scores computed in the forward pass
 - $\frac{\partial L}{\partial O}$: Gradient of loss with respect to output
-- $\frac{\partial L}{\partial I}$: Gradient of loss with respect to softmax input
+- $\frac{\partial L}{\partial S}$: Gradient of loss with respect to scaled dot-product
 - $d_k$: Embedding dimension of query and key matrices
-
-**Note**: If a mask was used in the forward pass, remember to apply it to $\frac{\partial L}{\partial I}$ before computing the gradients for Q and K.
-
-**Hint**: You might find `np.transpose` useful. Let the shapes guide you.
 
 
 #### 1.4 Multi-Head Attention (`mytorch/nn/multi_head_attention.py`)
 
-Multi-head attention allows the model to jointly attend to information from different representation subspaces. You will implement the `MultiHeadAttention` class that processes queries, keys, and values through multiple parallel attention heads. You will use the `Linear`, the generic `Softmax` and `ScaledDotProductAttention` classes you implemented to build the `MultiHeadAttention` class.
+Multi-head attention allows the model to jointly attend to information from different representation subspaces. You will implement the `MultiHeadAttention` class that processes queries, keys, and values through multiple parallel attention heads. You will use your generic `Linear`, `Softmax` and `ScaledDotProductAttention` classes you implemented to build the `MultiHeadAttention` class.
 
 ##### 1.4.1 Forward Pass
 
@@ -219,7 +433,7 @@ $$
 O' = \text{ScaledDotProductAttention}(Q', K', V', mask)
 $$
 
-4. Implement the `_merge_heads` method and use it to concatenate the attention outputs from all heads.
+4. Implement the `_concat_heads` method and use it to concatenate the attention outputs from all heads.
 
 $$
 O' (N, H, L, E/H) \rightarrow O'' (N, L, E)
@@ -239,7 +453,7 @@ The steps are:
 1. Backpropagate through output projection
 2. Split gradients into multiple heads using the `_split_heads` method
 3. Backpropagate through scaled dot-product attention for each head
-4. Merge heads of gradients for Q, K, V using the `_merge_heads` method 
+4. Merge heads of gradients for Q, K, V using the `_concat_heads` method 
 5. Backpropagate through input projections
 
 
@@ -271,16 +485,24 @@ For this assignment, you will convert each text transcript into:
 
 These numerical sequences will serve as inputs to and outputs from your model. During inference or generation, you will also need to reverse this process—converting indices back to tokens, and then reconstructing the original text.
 
-We have provided the H4Tokenizer class in `hw4lib/data/tokenizer.py` to handle tokenization for both `HW4P1` and `HW4P2`. This tokenizer supports several strategies:
+We have provided the H4Tokenizer class in `hw4lib/data/tokenizer.py` to handle tokenization for both `HW4P1` and `HW4P2`. 
+
+You will be working with two broad categories of tokenization strategies:
+
+1. Character-level tokenization: Each character in the language is treated as a token, resulting in a small vocabulary but longer token sequences for each sentence.
+2. Subword tokenization: Splits words into smaller reusable subword units. The subword method uses [Byte Pair Encoding (BPE)](https://arxiv.org/pdf/1508.07909) to learn and apply subword merges. This approach allows for a compact vocabulary that still captures uncommon or rare words by representing them as a combination of subwords.
+
+Selecting an appropriate tokenization strategy is crucial, as it affects the model’s vocabulary size, memory efficiency,
+and handling of rare or out-of-vocabulary words. As part of this assignment, you will explore how different tokenization strategies affect model performance in both `HW4P1` and `HW4P2`.
+
+`H4Tokenizer` supports the following tokenization strategies:
 
 - Character-level tokenization
 - Subword tokenization with a vocabulary size of 1,000
 - Subword tokenization with a vocabulary size of 5,000
 - Subword tokenization with a vocabulary size of 10,000
 
-Character-level tokenization is straightforward, while subword tokenization splits words into smaller subword units. The subword method uses [Byte Pair Encoding (BPE)](https://arxiv.org/pdf/1508.07909) to learn and apply subword merges.
 
-As part of this assignment, you will explore how different tokenization strategies affect model performance in both `HW4P1` and `HW4P2`.
 
 Before proceeding, familiarize yourself with the H4Tokenizer class and its key methods:
 
@@ -398,7 +620,9 @@ $$
 
 ##### 2.2.2 Positional Encoding (`hw4lib/model/positional_encoding.py`)
 
-The Transformer model does not rely on recurrence or convolution, treating all tokens in a sequence as independent of one another. To inject information about token positions into the model, **positional encoding** is used to retain the notion of order.
+Transformers lack an inherent understanding of token order, so positional encodings are
+added to the input embeddings. These encodings inform the model about the sequential nature of the data and
+help differentiate between tokens based on their positions.
 
 In this section, you will implement a fixed positional encoding scheme based on sine and cosine functions, as introduced in the original Transformer paper ([Vaswani et al., 2017](https://arxiv.org/abs/1706.03762)).
 
@@ -498,10 +722,29 @@ For `score_fn` and `apply_repeat_penalty`, you can use the `score_fn` attribute 
 
 > **NOTE**: While it's possible to implement these functions naively using a `for` loop, we recommend using vectorized operations to speed up the implementation, as these functions will be called repeatedly during inference. Some useful PyTorch functions for this task include `torch.zeros`, `torch.zeros_like`, `torch.all`, `torch.where`, `torch.gather`, `torch.cat`, `torch.log_softmax`, and various boolean operations (|, ==, !=, etc.) on tensors. It is possible to implement each line of the pseudocode using just 1-2 lines of code.
 
-#### 2.4 LMTrainer (`hw4lib/trainers/lm_trainer.py`)
+#### 2.4 Training the Language Model
+
+Great job! You are finally at the point where you can think about training your **decoder-only transformer** for autoregressive language modeling.
+
+
+
+---
+
+
+##### 2.4.1 LMTrainer (`hw4lib/trainers/lm_trainer.py`)
+
+You are given a partially implemented `LMTrainer` class in `hw4lib/trainers/lm_trainer.py`. You will have to do some minor in-filling for the `LMTrainer` class in `hw4lib/trainers/lm_trainer.py` before you can use it.
+- Fill in the `TODO`s in the `__init__`.
+- Fill in the `TODO`s in the `_train_epoch`.
+- Fill in the `TODO`s in the `_validate_epoch`.
+- Fill in the `TODO`s in the `train` method.
+- Fill in the `TODO`s in the `evaluate` method.
+- Fill in the `TODO`s in the `generate` method.
+
 
 ## HW4P2
 
+### TODO
 
 
 ## 📊 Dataset Structure

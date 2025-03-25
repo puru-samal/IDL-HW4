@@ -2,6 +2,7 @@ from .testing_framework import TestingFramework
 from .test_mytorch_softmax import test_softmax
 from .test_mytorch_scaled_dot_product_attention import test_scaled_dot_product_attention
 from .test_mytorch_multi_head_attention import test_multi_head_attention
+from .test_mytorch_linear import test_linear
 import json
 import os
 
@@ -27,7 +28,7 @@ def test_lm_perplexity():
         data = json.load(f)
 
     # Check that perplexity crosses threshold
-    threshold = 9.0
+    threshold = 3.5
     perplexity = data['perplexity_char']
     assert perplexity <= threshold, f"Character-level perplexity is greater than the threshold: {perplexity} > {threshold}"
     print(f"Test passed: Character-level perplexity ({perplexity}) <= Threshold ({threshold})")
@@ -37,6 +38,7 @@ if __name__ == "__main__":
 
     # Define the rubric for the tests
     rubric_dict = {
+        "Linear": 5,
         "Softmax": 5,
         "ScaledDotProductAttention": 10,
         "MultiHeadAttention": 10,
@@ -46,6 +48,9 @@ if __name__ == "__main__":
     testing_framework = TestingFramework(
         test_categories={k:[] for k in rubric_dict.keys()}
     )
+
+    # Register Linear Tests
+    testing_framework.register_test_case("Linear", test_linear, "Linear Tests")
 
     # Register Softmax Tests
     testing_framework.register_test_case("Softmax", test_softmax, "Softmax Tests")

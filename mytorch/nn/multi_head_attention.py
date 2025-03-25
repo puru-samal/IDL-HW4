@@ -47,21 +47,11 @@ class MultiHeadAttention:
         self.L = query.shape[1]
         self.S = key.shape[1]
         self.E = query.shape[2]
-
-        # Reshape q, k, v to (-1, embed_dim) to apply mytorch's linear layer
-        query = query.reshape(-1, self.E)
-        key   = key.reshape(-1, self.E)
-        value = value.reshape(-1, self.E)
         
         # Project the input into query, key, and value
-        q = self.q_proj.forward(query) # (N*L, embed_dim)
-        k = self.k_proj.forward(key)   # (N*S, embed_dim)
-        v = self.v_proj.forward(value) # (N*S, embed_dim)
-
-        # Reshape q, k, v back to (N, L, embed_dim)
-        q = q.reshape(self.N, self.L, self.E) # (N, L, embed_dim)   
-        k = k.reshape(self.N, self.S, self.E) # (N, S, embed_dim)
-        v = v.reshape(self.N, self.S, self.E) # (N, S, embed_dim)
+        q = self.q_proj.forward(query) # (N, L, embed_dim)
+        k = self.k_proj.forward(key)   # (N, S, embed_dim)
+        v = self.v_proj.forward(value) # (N, S, embed_dim)
 
         # Split the input into multiple heads
         q = self._split_heads(q) # (N, num_heads, L, embed_dim // num_heads)
@@ -75,16 +65,10 @@ class MultiHeadAttention:
         attn_outputs = self.attention.forward(q, k, v, mask=mask) # (N, num_heads, L, embed_dim // num_heads)
 
         # Merge the attention outputs   
-        attn_output = self._merge_heads(attn_outputs)             # (N, L, embed_dim)
-
-        # Reshape attn_output to (N*L, embed_dim) to apply mytorch's linear layer
-        attn_output = attn_output.reshape(-1, self.E)
+        attn_output = self._concat_heads(attn_outputs) # (N, L, embed_dim)
 
         # Project the attention outputs
-        output = self.out_proj.forward(attn_output)        # (N, L, embed_dim)
-
-        # Reshape output back to (N, L, embed_dim)
-        output = output.reshape(self.N, self.L, self.E)
+        output = self.out_proj.forward(attn_output)  # (N, L, embed_dim)
         return output   
 
     def backward(self, d_output):
@@ -93,40 +77,24 @@ class MultiHeadAttention:
         :return: Gradient of loss wrt input query, key, value of shapes (N, L, E), (N, S, E), (N, S, E)
         """
 
-        # Reshape d_output to (N*L, embed_dim) to backpropagate through mytorch's linear layer
-        d_output = d_output.reshape(-1, self.E) # (N*L, embed_dim)
-
         # Backpropagate through the output projection   
         d_attn_output = self.out_proj.backward(d_output)  # (N*L, embed_dim) 
 
-        # Reshape d_attn_output back to (N, L, embed_dim)
-        d_attn_output = d_attn_output.reshape(self.N, self.L, self.E) # (N, L, embed_dim)   
-
         # Split the gradients into multiple heads
-        d_attn_outputs = self._split_heads(d_attn_output)        # (N, num_heads, L, embed_dim // num_heads)
+        d_attn_outputs = self._split_heads(d_attn_output)  # (N, num_heads, L, embed_dim // num_heads)
 
         # Backpropagate through the attention mechanism
         d_q, d_k, d_v = self.attention.backward(d_attn_outputs)  # (N, num_heads, L, embed_dim // num_heads)
 
         # Merge the gradients
-        d_q = self._merge_heads(d_q) # (N, L, embed_dim)    
-        d_k = self._merge_heads(d_k) # (N, S, embed_dim)
-        d_v = self._merge_heads(d_v) # (N, S, embed_dim)
-
-        # Reshape d_q, d_k, d_v back to (N*L, embed_dim) to backpropagate through mytorch's linear layer
-        d_q = d_q.reshape(-1, self.E) # (N*L, embed_dim)
-        d_k = d_k.reshape(-1, self.E) # (N*S, embed_dim)
-        d_v = d_v.reshape(-1, self.E) # (N*S, embed_dim)
+        d_q = self._concat_heads(d_q) # (N, L, embed_dim)    
+        d_k = self._concat_heads(d_k) # (N, S, embed_dim)
+        d_v = self._concat_heads(d_v) # (N, S, embed_dim)
 
         # Backpropagate through the input projections   
         d_q = self.q_proj.backward(d_q) # (N, L, embed_dim)
         d_k = self.k_proj.backward(d_k) # (N, S, embed_dim)
         d_v = self.v_proj.backward(d_v) # (N, S, embed_dim)
-
-        # Reshape d_q, d_k, d_v back to (N, L, embed_dim), (N, S, embed_dim), (N, S, embed_dim)
-        d_q = d_q.reshape(self.N, self.L, self.E) # (N, L, embed_dim)
-        d_k = d_k.reshape(self.N, self.S, self.E) # (N, S, embed_dim)
-        d_v = d_v.reshape(self.N, self.S, self.E) # (N, S, embed_dim)
 
         return d_q, d_k, d_v
 
@@ -164,9 +132,9 @@ class MultiHeadAttention:
         x = x.transpose(0, 2, 1, 3)
         return x
 
-    def _merge_heads(self, x):
+    def _concat_heads(self, x):
         """
-        Merge the last dimension into (num_heads, d_k).
+        Concatenate the last dimension into (num_heads, d_k).
         Transpose to move num_heads dimension to the back.
         :param x: (N, num_heads, L, embed_dim // num_heads)
         :return: (N, L, embed_dim)

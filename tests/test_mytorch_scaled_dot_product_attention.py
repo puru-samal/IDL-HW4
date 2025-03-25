@@ -36,7 +36,7 @@ def test_scaled_dot_product_attention_forward():
         key   = torch.randn(shape)
         value = torch.randn(shape)
         
-        # Create attention masks (optional test)
+        # Ceate a mask
         mask = torch.ones(shape[:-2] + (seq_len, seq_len)).bool()
         
         # Get outputs from both implementations
@@ -45,7 +45,7 @@ def test_scaled_dot_product_attention_forward():
         )
         
         mytorch_attention = MytorchScaledDotProductAttention()
-        mytorch_output = mytorch_attention.forward(query.numpy(), key.numpy(), value.numpy(), mask=mask.numpy())
+        mytorch_output = mytorch_attention.forward(query.numpy(), key.numpy(), value.numpy(), mask=~mask.numpy())
         
         # Compare outputs
         assert  np.allclose(pytorch_output.numpy(), mytorch_output, rtol=1e-4, atol=1e-4), \
@@ -75,7 +75,7 @@ def test_scaled_dot_product_attention_backward():
         key   = torch.randn(shape, requires_grad=True)
         value = torch.randn(shape, requires_grad=True)
         
-        # Create attention masks
+        # # Ceate a mask
         mask = torch.ones(shape[:-2] + (seq_len, seq_len)).bool()
         
         # Forward pass with PyTorch
@@ -95,7 +95,7 @@ def test_scaled_dot_product_attention_backward():
             query.detach().numpy(), 
             key.detach().numpy(), 
             value.detach().numpy(), 
-            mask=mask.numpy()
+            mask=~mask.numpy()
         )
         
         # Backward pass with with np.ones_like since gradient of .sum() wrt to input is 1    

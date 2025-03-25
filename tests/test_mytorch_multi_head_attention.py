@@ -37,13 +37,13 @@ def test_multi_head_attention_forward():
         # Copy weights from PyTorch to MyTorch implementation
         mytorch_mha.init_weights(
             pytorch_mha.in_proj_weight[:embed_dim, :].detach().numpy(),
-            pytorch_mha.in_proj_bias[:embed_dim].detach().numpy().reshape(-1, 1),
+            pytorch_mha.in_proj_bias[:embed_dim].detach().numpy(),
             pytorch_mha.in_proj_weight[embed_dim:2*embed_dim, :].detach().numpy(),
-            pytorch_mha.in_proj_bias[embed_dim:2*embed_dim].detach().numpy().reshape(-1, 1),
+            pytorch_mha.in_proj_bias[embed_dim:2*embed_dim].detach().numpy(),
             pytorch_mha.in_proj_weight[2*embed_dim:, :].detach().numpy(),
-            pytorch_mha.in_proj_bias[2*embed_dim:].detach().numpy().reshape(-1, 1),
+            pytorch_mha.in_proj_bias[2*embed_dim:].detach().numpy(),
             pytorch_mha.out_proj.weight.detach().numpy(),
-            pytorch_mha.out_proj.bias.detach().numpy().reshape(-1, 1)   
+            pytorch_mha.out_proj.bias.detach().numpy()   
         )
         
         # Create input tensors
@@ -105,13 +105,13 @@ def test_multi_head_attention_backward():
         # Copy weights from PyTorch to MyTorch implementation
         mytorch_mha.init_weights(
             pytorch_mha.in_proj_weight[:embed_dim, :].detach().numpy(),
-            pytorch_mha.in_proj_bias[:embed_dim].detach().numpy().reshape(-1, 1),
+            pytorch_mha.in_proj_bias[:embed_dim].detach().numpy(),
             pytorch_mha.in_proj_weight[embed_dim:2*embed_dim, :].detach().numpy(),
-            pytorch_mha.in_proj_bias[embed_dim:2*embed_dim].detach().numpy().reshape(-1, 1),
+            pytorch_mha.in_proj_bias[embed_dim:2*embed_dim].detach().numpy(),
             pytorch_mha.in_proj_weight[2*embed_dim:, :].detach().numpy(),
-            pytorch_mha.in_proj_bias[2*embed_dim:].detach().numpy().reshape(-1, 1),
+            pytorch_mha.in_proj_bias[2*embed_dim:].detach().numpy(),
             pytorch_mha.out_proj.weight.detach().numpy(),
-            pytorch_mha.out_proj.bias.detach().numpy().reshape(-1, 1)   
+            pytorch_mha.out_proj.bias.detach().numpy()   
         )
 
         # Create input tensors with gradients
@@ -136,7 +136,7 @@ def test_multi_head_attention_backward():
         pytorch_dQ = query.grad.detach().numpy()
         pytorch_dK = key.grad.detach().numpy()
         pytorch_dV = value.grad.detach().numpy()
-
+        
         # Forward and backward pass with MyTorch
         mytorch_output = mytorch_mha.forward(
             query.detach().numpy(),
