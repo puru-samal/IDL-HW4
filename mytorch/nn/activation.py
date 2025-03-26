@@ -21,6 +21,7 @@ class Softmax:
 
         # Compute the softmax in a numerically stable way
         # Apply it to the dimension specified by the `dim` parameter
+        # Make sure you do this in a numerically stable way
         self.A = np.exp(Z - np.max(Z, axis=self.dim, keepdims=True))
         self.A /= np.sum(self.A, axis=self.dim, keepdims=True) + 1e-8
         return self.A
@@ -36,7 +37,7 @@ class Softmax:
         # Find the dimension along which softmax was applied
         C = shape[self.dim]
            
-        # Reshape input to 2D if necessary
+        # Reshape input to 2D
         if len(shape) > 2:
             # Move target dimension to end and flatten other dimensions
             self.A = np.moveaxis(self.A, self.dim, -1)

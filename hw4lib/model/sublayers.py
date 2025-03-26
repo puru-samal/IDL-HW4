@@ -78,7 +78,7 @@ class SelfAttentionLayer(nn.Module):
             attn_mask            = attn_mask,
             average_attn_weights = True,
         )
-        # TODO: Add residual connection 
+        # TODO: Add residual connection with dropout
         x = residual + self.dropout(x)
         # TODO: Return the output tensor and attention weights
         return x, mha_attn_weights   
@@ -148,7 +148,7 @@ class CrossAttentionLayer(nn.Module):
             attn_mask            = attn_mask,
             average_attn_weights = True,
         )
-        # TODO: Add residual connection 
+        # TODO: Add residual connection with dropout
         x = residual + self.dropout(x)
         # TODO: Return the output tensor and attention weights
         return x, mha_attn_weights    
@@ -208,8 +208,10 @@ class FeedForwardLayer(nn.Module):
         residual = x
         # TODO: Apply pre-normalization
         x = self.norm(x)
-        # TODO: FFN with dropout
-        x = residual + self.dropout(self.ffn(x))
+        # TODO: Apply feed-forward network with dropout
+        x = self.dropout(self.ffn(x))
+        # TODO: Add residual connection
+        x = residual + x
         # TODO: Return the output tensor
         return x
     

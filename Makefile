@@ -1,7 +1,7 @@
 # Directories
 HANDIN_DIR = handin
 TEST_DIR = tests
-AUTOGRADE_FILES = $(TEST_DIR)/testing_framework.py $(TEST_DIR)/test_hw4p1.py $(TEST_DIR)/test_mytorch_softmax.py $(TEST_DIR)/test_mytorch_scaled_dot_product_attention.py $(TEST_DIR)/test_mytorch_multi_head_attention.py
+AUTOGRADE_FILES = $(TEST_DIR)/testing_framework.py $(TEST_DIR)/test_hw4p1.py $(TEST_DIR)/test_mytorch_linear.py $(TEST_DIR)/test_mytorch_softmax.py $(TEST_DIR)/test_mytorch_scaled_dot_product_attention.py $(TEST_DIR)/test_mytorch_multi_head_attention.py
 
 # Python command
 # python3 for autolab

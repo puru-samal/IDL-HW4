@@ -59,8 +59,7 @@ class LMDataset(Dataset):
         self.pad_token = self.tokenizer.pad_id
 
         # Set up data paths 
-        # Use root and partition to get the text directory
-        # DO NOT MODIFY
+        # TODO: Join root and partition to get the text directory
         self.text_dir = os.path.join(self.config['root'], self.partition)
 
         # TODO: Get all text files in the text directory in sorted order  
@@ -70,7 +69,7 @@ class LMDataset(Dataset):
         subset_size = int(self.config['subset'] * len(self.text_files))
         self.text_files = self.text_files[:subset_size]
 
-        # Initialize lists to store transcripts
+        # TODO: Initialize lists to store transcripts
         self.transcripts_shifted = []
         self.transcripts_golden  = []
         
@@ -141,7 +140,8 @@ class LMDataset(Dataset):
                 - shifted_transcript: LongTensor starting with SOS token
                 - golden_transcript: LongTensor ending with EOS token
         """
-        # TODO: Get the shifted and golden transcripts for the given index
+        # TODO: Get the shifted and golden transcripts for the given index 
+        # Make sure you convert to the right type
         shifted = torch.LongTensor(self.transcripts_shifted[idx])
         golden  = torch.LongTensor(self.transcripts_golden[idx])
         return shifted, golden
@@ -175,6 +175,7 @@ class LMDataset(Dataset):
     def sample_prompts(self, num_samples: int, prompt_length: int, seed: int = None) -> Tuple[torch.LongTensor, List[torch.LongTensor]]:
         """
         Sample random prompts of fixed length from the dataset and return their original sequences.
+        DO NOT MODIFY
         
         Args:
             num_samples: Number of prompts to sample

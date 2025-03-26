@@ -15,6 +15,9 @@ class LMTrainer(BaseTrainer):
     2. Validation loop for model evaluation
     3. Generation capabilities with different decoding strategies
 
+    You only need to fill in the TODOs in the code. 
+    Please do not modify any other code without understanding what you are doing.
+    
     Implementation Tasks:
     - TODO: Initialize the criterion in __init__
     - TODO: Implement key parts of the training loop in _train_epoch
@@ -29,8 +32,7 @@ class LMTrainer(BaseTrainer):
     2. For _train_epoch:
         - Unpack the batch (shifted inputs, golden targets, lengths)
         - Get model predictions and attention weights
-        - Calculate loss and normalize by accumulation steps
-        - Handle gradient accumulation correctly
+        - Calculate loss
         
     3. For _validate_epoch:
         - Similar to _train_epoch but without gradient calculations
@@ -75,7 +77,8 @@ class LMTrainer(BaseTrainer):
         self.optimizer.zero_grad()
 
         for i, batch in enumerate(dataloader):
-            # TODO: Unpack batch
+            # TODO: Unpack batch from the dataloader
+            # TODO: Move the batch elements to the device
             targets_shifted, targets_golden, lengths = batch
             targets_shifted = targets_shifted.to(self.device)
             targets_golden = targets_golden.to(self.device)
@@ -83,14 +86,14 @@ class LMTrainer(BaseTrainer):
 
             with torch.autocast(device_type=self.device, dtype=torch.float16):
 
-                # TODO: Get raw predictions and attention weights from model
+                # TODO: Get raw logits and attention weights from model
                 raw_preds, attn_weights = self.model(targets_shifted, lengths)
 
                 # TODO: Calculate raw loss first
                 raw_loss = self.criterion(raw_preds.view(-1, raw_preds.size(-1)), 
                                       targets_golden.view(-1))
                 
-            # Calculate metrics with raw loss
+            # Calculate metrics with raw loss (DO NOT MODIFY THIS)
             batch_tokens = lengths.sum().item()
             total_tokens += batch_tokens
             running_ce_loss += raw_loss.item() * batch_tokens

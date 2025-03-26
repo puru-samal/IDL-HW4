@@ -42,7 +42,7 @@ if __name__ == "__main__":
         "Softmax": 5,
         "ScaledDotProductAttention": 10,
         "MultiHeadAttention": 10,
-        "LanguageModel": 75,
+        "LanguageModel": 70,
     }
 
     testing_framework = TestingFramework(
