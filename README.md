@@ -103,3 +103,8 @@ tests/
 - [ ] Remove `tests/test_hw4p1.py` from the handout
 - [ ] Update threshold in `tests/test_hw4p1.py` and re-run `make create_autograde`
 - [ ] Replace autolab's `autograde.tar` after threshold is updated
+
+
+---
+
+Developed by: Puru Samal
