@@ -19,6 +19,11 @@ python simulate_autolab.py handin.tar
 
 # Or keep the simulation directory for debugging
 python simulate_autolab.py handin.tar --keep
+
+# Once you have verified that everything is working, upload the:
+ - autograde-Makefile
+ - autograde.tar
+to Autolab. (Assignment -> Autograder Settings)
 """
 
 def simulate_autolab(submission_path: str, autograde_dir: str = "autograde_simulation", keep: bool = False):
