@@ -1,5 +1,7 @@
 # **HW4 Handout**
 
+[Dataset](https://www.kaggle.com/datasets/cmu11785/s25-hw4-data)
+
 In this assignment, we are introducing a new format for assignment delivery, designed to enhance your development workflow. The key motivations for this change are:  
 
 - **Test Suite Integration**: Your code will be tested in a manner similar to `HWP1's`.  
