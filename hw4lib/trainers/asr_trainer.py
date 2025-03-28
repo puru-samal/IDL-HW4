@@ -316,19 +316,22 @@ class ASRTrainer(BaseTrainer):
         eval_results = {}
         # Evaluate with each recognition config
         for config_name, config in recognition_configs.items():
-            print(f"Evaluating with {config_name} config")
-            results = self.recognize(dataloader, config, config_name, max_length)
-            
-            # Calculate metrics on full batch
-            generated = [r['generated'] for r in results]
-            results_df = pd.DataFrame(
-                {
-                    'id': range(len(generated)),
-                    'transcription': generated
-                }
-            )
-            eval_results[config_name] = results_df
-            self._save_generated_text(results, f'test_{config_name}_results')
+            try:
+                print(f"Evaluating with {config_name} config")
+                results = self.recognize(dataloader, config, config_name, max_length)     
+                # Calculate metrics on full batch
+                generated = [r['generated'] for r in results]
+                results_df = pd.DataFrame(
+                    {
+                        'id': range(len(generated)),
+                        'transcription': generated
+                    }
+                )
+                eval_results[config_name] = results_df
+                self._save_generated_text(results, f'test_{config_name}_results')
+            except Exception as e:
+                print(f"Error evaluating with {config_name} config: {e}")
+                continue
         
         return eval_results
 

@@ -507,6 +507,7 @@ If everything was done correctly, You should see atleast the following files in 
 
 - [ ] Remove `tests/test_hw4p1.py` from the handout
 - [ ] Remove all credentials from the handout
+- [ ] Remove Training Strategies 2 and 3 from `HW4P2_nb.ipynb`
 
 ---
 
