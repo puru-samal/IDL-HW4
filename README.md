@@ -1,7 +1,5 @@
 # **HW4 Handout**
 
-[Dataset](https://www.kaggle.com/datasets/cmu11785/s25-hw4-data)
-
 In this assignment, we are introducing a new format for assignment delivery, designed to enhance your development workflow. The key motivations for this change are:
 
 - **Test Suite Integration**: Your code will be tested in a manner similar to `HWP1's`.
@@ -229,6 +227,7 @@ os.environ["KAGGLE_KEY"] = "your-key"
 !curl -L -o /content/s25-hw4-data.zip https://www.kaggle.com/api/v1/datasets/download/cmu11785/s25-hw4-data
 !unzip -q -o /content/s25-hw4-data.zip -d /content/hw4_data
 !rm -rf /content/s25-hw4-data.zip
+!du -h --max-depth=2 /content/hw4_data
 ```
 
 #### Step 5: Move to Handout Directory
@@ -482,6 +481,7 @@ os.environ["KAGGLE_KEY"] = "your-key"
 Depending on the way you are running your notebook, you may or may not need to run this cell. As long as you are within the handout directory for the library imports to work!
 
 ```python
+# Move to the handout directory if you are not there already
 import os
 os.chdir('IDL-HW4')
 !ls
@@ -506,6 +506,7 @@ If everything was done correctly, You should see atleast the following files in 
 # Internal TODO:
 
 - [ ] Remove `tests/test_hw4p1.py` from the handout
+- [ ] Remove all credentials from the handout
 
 ---
 

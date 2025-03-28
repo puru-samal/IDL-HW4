@@ -11,6 +11,7 @@ import torchaudio.functional as aF
 import json
 import torchmetrics.text as tmt
 from torch.utils.data import Subset
+import pandas as pd
 
 
 class ASRTrainer(BaseTrainer):
@@ -297,44 +298,37 @@ class ASRTrainer(BaseTrainer):
             self.current_epoch += 1
                 
 
-    def evaluate(self, dataloader, solution:Optional[List[str]] = None, max_length: Optional[int] = None) -> Dict[str, Dict[str, float]]:
+    def evaluate(self, dataloader, max_length: Optional[int] = None) -> Dict[str, Dict[str, float]]:
         """
         Evaluate the model on the test set.
         
         Args:
             dataloader: DataLoader for test data
-            solution_json: Path to the JSON file containing the test set solutions
             max_length: Optional[int], maximum length of the generated sequence
         Returns:
-            Dictionary containing evaluation metrics and recognition results for each recognition config
+            Dictionary containing recognition results for each recognition config
+            Each result is a pandas DataFrame with columns 'id' and 'transcription'
         """
-        if solution is not None:
-            solution_data = solution
-        else:
-            raise ValueError("Solution is required for evaluation")
 
         # Get recognition configs
         recognition_configs = self._get_evaluation_recognition_configs()
         
-        # Evaluate with each recognition config
         eval_results = {}
+        # Evaluate with each recognition config
         for config_name, config in recognition_configs.items():
             print(f"Evaluating with {config_name} config")
             results = self.recognize(dataloader, config, config_name, max_length)
-            assert len(results) == len(solution_data)
             
             # Calculate metrics on full batch
             generated = [r['generated'] for r in results]
-            metrics = self._calculate_asr_metrics(solution_data, generated)
-            eval_results[config_name] = metrics
-            self._save_generated_text(results, f'test_{config_name}_results')
-
-            # Log metrics
-            self._log_metrics(
+            results_df = pd.DataFrame(
                 {
-                    f'test_{config_name}': metrics
-                }, self.current_epoch
+                    'id': range(len(generated)),
+                    'transcription': generated
+                }
             )
+            eval_results[config_name] = results_df
+            self._save_generated_text(results, f'test_{config_name}_results')
         
         return eval_results
 
