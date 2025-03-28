@@ -340,6 +340,10 @@ class SpeechEmbedding(nn.Module):
         return lengths
 
 
+## -------------------------------------------------------------------------------------------------
+## Test Cases
+## -------------------------------------------------------------------------------------------------
+
 def get_inputs(input_dim: int, max_length: int, batch_size: int):
     input_tensor = torch.randn(batch_size, max_length, input_dim)
     input_lengths = torch.ones(batch_size) * max_length

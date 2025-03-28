@@ -73,7 +73,15 @@ class SequenceGenerator:
             sequences: torch.Tensor,
             penalty: float = 1.0
     ) -> torch.Tensor:
-        """Apply repetition penalty to logits based on tokens in sequences."""
+        """
+        Apply repetition penalty to logits based on tokens in sequences.
+        Args:
+            logits: Logits tensor of shape (batch_size, vocab_size) or (batch_size, beam_width, vocab_size)
+            sequences: Sequences tensor of shape (batch_size, sequence_length) or (batch_size, beam_width, sequence_length)
+            penalty: Repetition penalty value
+        Returns:
+            Logits tensor with repetition penalty applied
+        """
         if penalty == 1.0:
             return logits
         

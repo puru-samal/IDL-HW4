@@ -69,6 +69,8 @@ class SelfAttentionLayer(nn.Module):
         # TODO: Apply pre-normalization
         x = self.norm(x)
         # TODO: Self-attention with with dropout (weights need to be stored)
+        # Be sure to use the correct arguments for the multi-head attention layer
+        # Set need_weights to True and average_attn_weights to True so we can get the attention weights 
         x, mha_attn_weights = self.mha(
             query                = x,
             key                  = x,
@@ -100,7 +102,7 @@ class CrossAttentionLayer(nn.Module):
        d. Apply residual connection with dropout
        e. Return the output tensor and attention weights (both are needed)    
     '''     
-    def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
+    def __init__(self, d_model: int, num_heads: int, dropout: float = 0.0):
         '''
         Initialize the CrossAttentionLayer. 
         Args:
@@ -139,6 +141,8 @@ class CrossAttentionLayer(nn.Module):
         # TODO: Apply pre-normalization
         x = self.norm(x)
         # TODO: Cross-attention with dropout (weights need to be stored)
+        # Be sure to use the correct arguments for the multi-head attention layer
+        # Set need_weights to True and average_attn_weights to True so we can get the attention weights 
         x, mha_attn_weights = self.mha(
             query                = x,
             key                  = y,
@@ -174,7 +178,7 @@ class FeedForwardLayer(nn.Module):
        d. Add residual connection
        e. Return the output tensor
     '''
-    def __init__(self, d_model: int, d_ff: int, dropout: float = 0.1):
+    def __init__(self, d_model: int, d_ff: int, dropout: float = 0.0):
         '''
         Initialize the FeedForwardLayer. 
         Args:

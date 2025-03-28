@@ -27,10 +27,9 @@ class ASRTrainer(BaseTrainer):
     Implementation Tasks:
     - TODO: Initialize CE and CTC loss in __init__
     - TODO: Implement key parts of the training loop in _train_epoch
+    - TODO: Implement recognition functionality in recognize
     - TODO: Implement key parts of the validation loop in _validate_epoch
     - TODO: Implement key parts of the full training loop in train
-    - TODO: Implement recognition functionality in recognize
-    - TODO: Calculate ASR metrics in _calculate_asr_metrics
 
     Implementation Notes:
     1. For __init__:
@@ -41,23 +40,19 @@ class ASRTrainer(BaseTrainer):
         - Unpack the batch (features, shifted targets, golden targets, lengths)
         - Get model predictions, attention weights and CTC inputs
         - Calculate CE loss and CTC loss if enabled
-        - Handle gradient accumulation correctly
+        - Backpropagate the loss
         
     3. For _validate_epoch:
         - Use recognize() to generate transcriptions
-        - Calculate WER, CER and word distance metrics
+        - Extract references and hypotheses from recognition results
         
     4. For train:
-        - Initialize scheduler if not already done
         - Set maximum transcript length
         - Implement epoch loop with training and validation
-        - Handle model checkpointing and metric logging
         
     5. For recognize:
-        - Initialize sequence generator with appropriate scoring function
-        - Handle both greedy and beam search decoding
-        - Support language model shallow fusion
-        - Post-process sequences using tokenizer
+        - Run inference
+        - Handle both greedy and optionally beam search decoding
     """
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
         super().__init__(model, tokenizer, config, run_name, config_file, device)
@@ -100,7 +95,7 @@ class ASRTrainer(BaseTrainer):
         self.optimizer.zero_grad()
 
         for i, batch in enumerate(dataloader):
-            # TODO: Unpack batch
+            # TODO: Unpack batch and move to device
             feats, targets_shifted, targets_golden, feat_lengths, transcript_lengths = batch
             feats = feats.to(self.device)
             targets_shifted = targets_shifted.to(self.device)
@@ -113,7 +108,9 @@ class ASRTrainer(BaseTrainer):
                 seq_out, curr_att, ctc_inputs = self.model(
                     feats, targets_shifted, feat_lengths, transcript_lengths
                 )
-                running_att = curr_att  # Update running_att with the latest attention weights
+                
+                # Update running_att with the latest attention weights
+                running_att = curr_att
                 
                 # TODO: Calculate CE loss
                 ce_loss = self.ce_criterion(
@@ -216,7 +213,7 @@ class ASRTrainer(BaseTrainer):
         references = [result['target'] for result in results]
         hypotheses = [result['generated'] for result in results]
         
-        # TODO: Calculate metrics on full batch
+        # Calculate metrics on full batch
         metrics = self._calculate_asr_metrics(references, hypotheses)
         
         return metrics, results
@@ -300,7 +297,7 @@ class ASRTrainer(BaseTrainer):
 
     def evaluate(self, dataloader, max_length: Optional[int] = None) -> Dict[str, Dict[str, float]]:
         """
-        Evaluate the model on the test set.
+        Evaluate the model on the test set. Sequentially evaluates with each recognition config.
         
         Args:
             dataloader: DataLoader for test data
@@ -372,7 +369,7 @@ class ASRTrainer(BaseTrainer):
             recognition_config['lm_model'].eval()
             recognition_config['lm_model'].to(self.device)
 
-        # TODO: Initialize sequence generator
+        # Initialize sequence generator
         generator = SequenceGenerator(
             score_fn=None,  # Will be set for each batch
             tokenizer=self.tokenizer,
@@ -388,17 +385,17 @@ class ASRTrainer(BaseTrainer):
         # Run inference
         with torch.inference_mode():
             for i, batch in enumerate(dataloader):
-                # TODO: Unpack batch (handle both cases where targets might be None)
+                # TODO: Unpack batch and move to device (handle both cases where targets might be None)
                 feats, _, targets_golden, feat_lengths, _ = batch
                 feats = feats.to(self.device)
                 feat_lengths = feat_lengths.to(self.device)
                 if targets_golden is not None:
                     targets_golden = targets_golden.to(self.device)
                 
-                # TODO: Encode features
+                # TODO: Encode speech features to hidden states
                 encoder_output, pad_mask_src, _, _ = self.model.encode(feats, feat_lengths)
 
-                # TODO: Define scoring function for this batch
+                # Define scoring function for this batch
                 def get_score(x):
                     asr_logits = self.model.score(x, encoder_output, pad_mask_src)
                     if recognition_config.get('lm_model') is not None:
@@ -406,15 +403,16 @@ class ASRTrainer(BaseTrainer):
                         return asr_logits + recognition_config['lm_weight'] * lm_logits
                     return asr_logits
                 
-                # TODO: Set score function of generator
+                # Set score function of generator
                 generator.score_fn = get_score
 
-                # TODO: Generate sequences
+                # TODO: Initialize prompts as a batch of SOS tokens
                 batch_size = feats.size(0)
                 prompts = torch.full((batch_size, 1), self.tokenizer.sos_id, dtype=torch.long).to(self.device)
 
-                # TODO: Generate sequences using beam search or greedy search
+                # TODO: Generate sequences
                 if recognition_config['beam_width'] > 1:
+                    # TODO: If you have implemented beam search, generate sequences using beam search
                     seqs, scores = generator.generate_beam(
                         x=prompts,
                         beam_width=recognition_config['beam_width'],
@@ -425,6 +423,7 @@ class ASRTrainer(BaseTrainer):
                     seqs = seqs[:, 0, :]
                     scores = scores[:, 0]
                 else:
+                    # TODO: Generate sequences using greedy search
                     seqs, scores = generator.generate_greedy(
                         x=prompts,
                         temperature=recognition_config.get('temperature', 1.0),
@@ -438,7 +437,7 @@ class ASRTrainer(BaseTrainer):
                 # Post process sequences
                 post_processed_preds = generator.post_process_sequence(seqs, self.tokenizer)
                 
-                # TODO: Store results as a list of dictionaries with target and generated sequences and scores
+                # Store results as a list of dictionaries with target and generated sequences and scores
                 if targets_golden is not None:
                     post_processed_targets = generator.post_process_sequence(targets_golden, self.tokenizer)
                     for j, (pred, target) in enumerate(zip(post_processed_preds, post_processed_targets)):
@@ -464,7 +463,7 @@ class ASRTrainer(BaseTrainer):
 
     def _get_evaluation_recognition_configs(self, lm_model: Optional[DecoderOnlyTransformer] = None, lm_weight: float = 0.0) -> Dict[str, Dict[str, Any]]:
         """
-        Get a list of recognition configurations for evaluation.
+        Get a list of recognition configurations for seqential evaluation.
         
         Returns:
             Dictionary containing recognition configurations
@@ -524,7 +523,8 @@ class ASRTrainer(BaseTrainer):
             'cer': cer.item() * 100
         }
     
-# INTERNAL USE ONLY
+# -------------------------------------------------------------------------------------------------
+
 class ProgressiveTrainer(ASRTrainer):
     """
     Progressive Trainer class that implements curriculum learning for ASR training.
@@ -536,11 +536,11 @@ class ProgressiveTrainer(ASRTrainer):
     4. Smooth transition to full model training
 
     Implementation Tasks:
-    - TODO: Store original model layers in __init__
-    - TODO: Configure model for each stage in configure_stage
-    - TODO: Implement progressive training loop in progressive_train
-    - TODO: Handle transition to full training in transition_to_full_training
-    - TODO: Create data subsets in get_subset_dataloader
+    - Store original model layers in __init__
+    - Configure model for each stage in configure_stage
+    - Implement progressive training loop in progressive_train
+    - Handle transition to full training in transition_to_full_training
+    - Create data subsets in get_subset_dataloader
 
     Implementation Notes:
     1. For __init__:
@@ -567,6 +567,114 @@ class ProgressiveTrainer(ASRTrainer):
     5. For get_subset_dataloader:
         - Create subset while preserving dataset attributes
         - Maintain collate function and other dataloader settings
+
+    # -------------------------------------------------------------------------------------------------
+    ##### Stage Configuration
+
+    Each stage is defined as a dictionary with the following parameters:
+    ```python
+    {
+        'name': str,                        # Name of the training stage
+        'epochs': int,                      # Number of epochs to train in this stage
+        'encoder_active_layers': List[int], # Which encoder layers to use
+        'decoder_active_layers': List[int], # Which decoder layers to use
+        'encoder_freeze': List[bool],       # Whether to freeze each encoder layer
+        'decoder_freeze': List[bool],       # Whether to freeze each decoder layer
+        'dropout': float,                   # Dropout rate for this stage
+        'label_smoothing': float,           # Label smoothing value
+        'data_subset': float                # Fraction of training data to use (0.0-1.0)
+    }
+    ```
+    #### Example
+    It is best understood by an example. Here is a breakdown of the stages defined below for a model with 6 encoder and 6 decoder layers:
+
+    stages = [
+                {
+                    # `Initial (1 layers)`:
+                    # This stage starts with a model with only 1 encoder and 1 decoder layer.
+                    # No freezing or regularization is applied.
+                    # It uses 20% of the training data.
+                    'name': 'Initial (1 Encoder + 1 Decoder layers)',
+                    'epochs': 5,
+                    'encoder_active_layers': list(range(1)),
+                    'decoder_active_layers': list(range(1)),
+                    'encoder_freeze': [False],
+                    'decoder_freeze': [False],
+                    'dropout': 0.0,
+                    'label_smoothing': 0.0,
+                    'data_subset': 0.2
+                },
+                {
+                    # `2 layers`:
+                    # This stage increases the number of layers to 2 for both the encoder and decoder.
+                    # The previous layer (encoder layer 1 and decoder layer 1) are frozen.
+                    # No regularization is applied.
+                    # It uses 20% of the training data.
+                    'name': '2 Encoder + 2 Decoder layers',
+                    'epochs': 5,
+                    'encoder_active_layers': list(range(2)),
+                    'decoder_active_layers': list(range(2)),
+                    'encoder_freeze': [True, False],
+                    'decoder_freeze': [True, False],
+                    'dropout': 0.0,
+                    'label_smoothing': 0.0,
+                    'data_subset': 0.2
+                },
+                {
+                    # `4 layers`:
+                    # This stage increases the number of layers to 4 for both the encoder and decoder.
+                    # The previous layers (encoder layers 1 and 2 and decoder layers 1 and 2) are frozen.
+                    # Dropout is set to 0.05 and label smoothing is set to 0.0.
+                    # It uses 20% of the training data.
+                    'name': '4 Encoder + 4 Decoder layers',
+                    'epochs': 5,
+                    'encoder_active_layers': list(range(4)),
+                    'decoder_active_layers': list(range(4)),
+                    'encoder_freeze': [True, True, False, False],
+                    'decoder_freeze': [True, True, False, False],
+                    'dropout': 0.05,
+                    'label_smoothing': 0.0,
+                    'data_subset': 0.2
+                },
+                {
+                    # `All 6 layers`:
+                    # This stage uses all 6 encoder and 6 decoder layers.
+                    # The 4 previous layers are frozen and the last 2 layers are trained.
+                    # Dropout is set to 0.1 and label smoothing is set to 0.0.
+                    # It uses 20% of the training data.
+                    'name': '6 Encoder + 6 Decoder layers',
+                    'epochs': 5,
+                    'encoder_active_layers': list(range(6)),
+                    'decoder_active_layers': list(range(6)),
+                    'encoder_freeze': [True, True, True, True, False, False],
+                    'decoder_freeze': [True, True, True, True, False, False],
+                    'dropout': 0.1,
+                    'label_smoothing': 0.0,
+                    'data_subset': 0.2
+                },
+                {
+                    # `Final (with label smoothing)`:
+                    # This stage uses all 6 encoder and 6 decoder layers.
+                    # All layers are unfrozen and trained.
+                    # Dropout is set to 0.1 and label smoothing is set to 0.1.
+                    # It uses 20% of the training data.
+                    'name': 'Final (with label smoothing)',
+                    'epochs': 5,
+                    'encoder_active_layers': list(range(6)),
+                    'decoder_active_layers': list(range(6)),
+                    'encoder_freeze': [False, False, False, False, False, False],
+                    'decoder_freeze': [False, False, False, False, False, False],
+                    'dropout': 0.1,
+                    'label_smoothing': 0.1,
+                    'data_subset': 0.2
+                }
+            ]    
+
+    ##### Important Notes
+    - Ensure `encoder_freeze` and `decoder_freeze` lists match the length of their respective `active_layers`
+    - `data_subset` should be between 0 and 1
+    - Stage transitions are handled automatically by the trainer
+    - The same optimizer and scheduler are used for all stages so keep that in mind while setting the learning rates and other parameters
     """
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
         super().__init__(model, tokenizer, config, run_name, config_file, device)
@@ -656,7 +764,15 @@ class ProgressiveTrainer(ASRTrainer):
     
 
     def progressive_train(self, train_dataloader, val_dataloader, stages: List[Dict[str, Any]]):
-        """Progressive training through stages"""
+        """
+        Progressive training through stages
+        Each stage configuration is defined as a dictionary with the following parameters:
+
+        Args:
+            train_dataloader: DataLoader for training data
+            val_dataloader: DataLoader for validation data
+            stages: List of dictionaries containing stage configuration
+        """
         # Train through stages
         for stage_idx, stage_config in enumerate(stages):
             self.current_stage = stage_idx

@@ -21,9 +21,9 @@ class LMTrainer(BaseTrainer):
     Implementation Tasks:
     - TODO: Initialize the criterion in __init__
     - TODO: Implement key parts of the training loop in _train_epoch
+    - TODO: Use your greedy generation implementation in generate
     - TODO: Implement key parts of the the validation loop in _validate_epoch
     - TODO: Implement key parts of the full training loop in train
-    - TODO: Use your greedy generation implementation in generate
 
     Implementation Notes:
     1. For __init__:
@@ -39,9 +39,7 @@ class LMTrainer(BaseTrainer):
         - Use torch.inference_mode() for validation
         
     4. For train:
-        - Initialize scheduler if not already done
-        - Implement the epoch loop with training and validation
-        - Handle model checkpointing and metric logging
+        - Implement the epoch loop with training and validation and generation
         
     5. For generate:
         - Use the greedy decoding method you implemented in SequenceGenerator

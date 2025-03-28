@@ -8,39 +8,6 @@ from torch.nn.utils.rnn import pad_sequence
 import torchaudio.transforms as tat
 from .tokenizer import H4Tokenizer
 
-'''
-Internal TODO:
-# TODO: First create training dataset and compute global stats
-train_dataset = ASRDataset(
-    partition='train-clean-100',
-    config=config,
-    tokenizer=tokenizer,
-    isTrainPartition=True,
-    global_stats=None  # Will compute stats from training data
-)
-
-# TODO: Get the computed global stats from training set
-global_stats = None
-if config['norm'] == 'global_mvn':
-    global_stats = (train_dataset.global_mean, train_dataset.global_std)
-
-# Create dev/test datasets using training set statistics
-dev_dataset = ASRDataset(
-    partition='dev-clean',
-    config=config,
-    tokenizer=tokenizer,
-    isTrainPartition=False,
-    global_stats=global_stats  # Use stats from training set
-)
-
-test_dataset = ASRDataset(
-    partition='test-clean',
-    config=config,
-    tokenizer=tokenizer,
-    isTrainPartition=False,
-    global_stats=global_stats  # Use stats from training set
-)
-'''
 
 '''
 TODO: Implement this class.
@@ -95,8 +62,6 @@ class ASRDataset(Dataset):
     ):
         """
         Initialize the ASRDataset for ASR training/validation/testing.
-        TODO: Need to modify for student version by casing on the partition.
-
         Args:
             partition (str): Dataset partition ('train-clean-100', 'dev-clean', or 'test-clean')
             config (dict): Configuration dictionary containing dataset settings
@@ -106,6 +71,7 @@ class ASRDataset(Dataset):
             global_stats (tuple, optional): (mean, std) computed from training set.
                                           If None and using global_mvn, will compute during loading.
                                           Should only be None for training set.
+                                          Should be provided for dev and test sets.
         """
         # Store basic configuration
         self.config    = config
@@ -120,8 +86,7 @@ class ASRDataset(Dataset):
         self.pad_token = tokenizer.pad_id
 
         # Set up data paths 
-        # Use root and partition to get the feature directory
-        # DO NOT MODIFY
+        # TODO: Use root and partition to get the feature directory
         self.fbank_dir   = os.path.join(self.config['root'], partition, "fbank")
         
         # TODO: Get all feature files in the feature directory in sorted order  
@@ -134,6 +99,8 @@ class ASRDataset(Dataset):
         # TODO: Get the number of samples in the dataset  
         self.length      = len(self.fbank_files)
 
+        # Case on partition.
+        # Why will test-clean need to be handled differently?
         if self.partition != "test-clean":
             # TODO: Use root and partition to get the text directory
             self.text_dir   = os.path.join(self.config['root'], partition, "text")
@@ -148,18 +115,21 @@ class ASRDataset(Dataset):
             if len(self.fbank_files) != len(self.text_files):
                 raise ValueError("Number of feature and transcript files must match")
 
-        # Initialize lists to store features and transcripts
+        # TODO: Initialize lists to store features and transcripts
         self.feats, self.transcripts_shifted, self.transcripts_golden = [], [], []
         
         # Initialize counters for character and token counts
+        # DO NOT MODIFY
         self.total_chars  = 0
         self.total_tokens = 0
         
         # Initialize max length variables
+        # DO NOT MODIFY
         self.feat_max_len = 0
         self.text_max_len = 0
         
-        # Initialize Welford's algorithm accumulators if needed
+        # Initialize Welford's algorithm accumulators if needed for global_mvn
+        # DO NOT MODIFY
         if self.config['norm'] == 'global_mvn' and global_stats is None:
             if not isTrainPartition:
                 raise ValueError("global_stats must be provided for non-training partitions when using global_mvn")
@@ -170,6 +140,7 @@ class ASRDataset(Dataset):
         print(f"Loading data for {partition} partition...")
         for i in tqdm(range(self.length)):
             # TODO: Load features
+            # Features are of shape (num_feats, time)
             feat = np.load(os.path.join(self.fbank_dir, self.fbank_files[i])) # (num_feats, time)
 
             # TODO: Truncate features to num_feats
@@ -250,13 +221,15 @@ class ASRDataset(Dataset):
     def get_avg_chars_per_token(self):
         '''
         Get the average number of characters per token. Used to calculate character-level perplexity.
+        DO NOT MODIFY
         '''
-        # TODO: Return the average number of characters per token
         return self.avg_chars_per_token
 
     def __len__(self) -> int:
-        """Return the number of samples in the dataset."""
-        # TODO: Return the number of samples in the dataset
+        """
+        Return the number of samples in the dataset.
+        DO NOT MODIFY
+        """
         return self.length
 
     def __getitem__(self, idx) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -284,6 +257,7 @@ class ASRDataset(Dataset):
         elif self.config['norm'] == 'none':
             pass
         
+        # TODO: Get transcripts for non-test partitions
         shifted_transcript, golden_transcript = None, None
         if self.partition != "test-clean":
             # TODO: Get transcripts for non-test partitions
