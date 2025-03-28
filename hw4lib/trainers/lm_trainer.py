@@ -52,6 +52,8 @@ class LMTrainer(BaseTrainer):
     def __init__(self, model, tokenizer, config, run_name, config_file, device=None):
         super().__init__(model, tokenizer, config, run_name, config_file, device)
         # TODO: Initialize the criterion
+        # How would you set the ignore_index? 
+        # Use value in config to set the label_smoothing argument
         self.criterion = nn.CrossEntropyLoss(
             ignore_index=self.tokenizer.pad_id, 
             label_smoothing=self.config['training'].get('label_smoothing', 0.0)
@@ -78,7 +80,7 @@ class LMTrainer(BaseTrainer):
 
         for i, batch in enumerate(dataloader):
             # TODO: Unpack batch from the dataloader
-            # TODO: Move the batch elements to the device
+            # TODO: Move the batch elements to self.device
             targets_shifted, targets_golden, lengths = batch
             targets_shifted = targets_shifted.to(self.device)
             targets_golden = targets_golden.to(self.device)
@@ -90,6 +92,9 @@ class LMTrainer(BaseTrainer):
                 raw_preds, attn_weights = self.model(targets_shifted, lengths)
 
                 # TODO: Calculate raw loss first
+                # What is the shape of raw_preds and targets_golden? 
+                # Would you need to change the shape of the inputs to the criterion?
+                # Hint: See the documentation for CrossEntropyLoss
                 raw_loss = self.criterion(raw_preds.view(-1, raw_preds.size(-1)), 
                                       targets_golden.view(-1))
                 
@@ -169,6 +174,7 @@ class LMTrainer(BaseTrainer):
 
         for i, batch in enumerate(dataloader):
             # TODO: Unpack batch
+            # TODO: Move the batch elements to self.device
             targets_shifted, targets_golden, lengths = batch
             targets_shifted = targets_shifted.to(self.device)
             targets_golden = targets_golden.to(self.device)
@@ -180,6 +186,9 @@ class LMTrainer(BaseTrainer):
                 raw_preds, attn_weights = self.model(targets_shifted, lengths)
 
                 # TODO: Calculate loss
+                # What is the shape of raw_preds and targets_golden? 
+                # Would you need to change the shape of the inputs to the criterion?
+                # Hint: See the documentation for CrossEntropyLoss
                 loss = self.criterion(raw_preds.view(-1, raw_preds.size(-1)), 
                                       targets_golden.view(-1))
 
@@ -305,10 +314,13 @@ class LMTrainer(BaseTrainer):
         generation_results = {}
         eval_configs = self._get_evaluation_generation_configs()
         for config_name, config in eval_configs.items():
-            gen_results = self.generate(test_dataloader, generation_config=config)
-            generation_results[config_name] = gen_results
-            self._save_generated_text(gen_results, f'test_epoch_{self.current_epoch}_{config_name}')
-
+            try:
+                gen_results = self.generate(test_dataloader, generation_config=config)
+                generation_results[config_name] = gen_results
+                self._save_generated_text(gen_results, f'test_epoch_{self.current_epoch}_{config_name}')
+            except Exception as e:
+                print(f"Could not generate results for {config_name}: {e}")
+                continue
         return test_metrics, generation_results
 
     def generate(self, dataloader, generation_config: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
@@ -384,7 +396,6 @@ class LMTrainer(BaseTrainer):
                 scores = scores[:, 0]
             else:
                 # TODO: Use the prompts and the generate_greedy method you implemented in the SequenceGenerator class to generate sequences
-                # NOTE: Students will only implement this
                 print("Generating with greedy search...")
                 seqs, scores = generator.generate_greedy(
                     x=prompts,
@@ -392,11 +403,10 @@ class LMTrainer(BaseTrainer):
                     repeat_penalty=generation_config.get('repeat_penalty', 1.0)
                 )
 
-        # TODO:Post-process sequences
-        # NOTE: You might find a method in the SequenceGenerator class that you can use to do this
+        # Post-process sequences (trim upto EOS token)
         processed_seqs = generator.post_process_sequence(seqs, self.tokenizer)
 
-        # TODO: Compile results
+        # Compile results
         # results is a dictionary with the following keys:
         # - prompt: the decoded prompt
         # - generated: the decoded generated sequence after the prompt
