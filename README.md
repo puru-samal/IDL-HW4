@@ -207,19 +207,7 @@ import os
 os.kill(os.getpid(), 9)
 ```
 
-#### Step 3: Authenticate Kaggle
-
-In order to use the Kaggle’s public API, you must first authenticate using an API token. Go to the 'Account' tab of your user profile and select 'Create New Token'. This will trigger the download of kaggle.json, a file containing your API credentials.
-
-- `TODO`: Set your kaggle username and api key here based on the API credentials listed in the kaggle.json
-
-```python
-import os
-os.environ["KAGGLE_USERNAME"] = "your-username"
-os.environ["KAGGLE_KEY"] = "your-key"
-```
-
-#### Step 4: Obtain Data
+#### Step 3: Obtain Data
 
 - `NOTE`: This process will automatically download and unzip data for both `HW4P1` and `HW4P2`.
 
@@ -230,7 +218,7 @@ os.environ["KAGGLE_KEY"] = "your-key"
 !du -h --max-depth=2 /content/hw4_data
 ```
 
-#### Step 5: Move to Handout Directory
+#### Step 4: Move to Handout Directory
 
 ```python
 import os
@@ -288,19 +276,7 @@ repo_url = f"https://{TOKEN}@github.com/{GITHUB_USERNAME}/{REPO_NAME}.git"
 
 Simply set the `Environment` setting in the notebook to `Always use latest environment`. No need to install anything.
 
-#### Step 3: Authenticate Kaggle
-
-In order to use the Kaggle’s public API, you must first authenticate using an API token. Go to the 'Account' tab of your user profile and select 'Create New Token'. This will trigger the download of kaggle.json, a file containing your API credentials.
-
-- `TODO`: Set your kaggle username and api key here based on the API credentials listed in the kaggle.json
-
-```python
-import os
-os.environ["KAGGLE_USERNAME"] = "your-username"
-os.environ["KAGGLE_KEY"] = "your-key"
-```
-
-#### Step 4: Obtain Data
+#### Step 3: Obtain Data
 
 ##### ⚠️ Important: Kaggle Users
 
@@ -319,7 +295,7 @@ If you are using Kaggle, **do not manually download the data!** The dataset is l
 
 This process will automatically download and unzip data for both `HW4P1` and `HW4P2`.
 
-#### Step 5: Move to Handout Directory
+#### Step 4: Move to Handout Directory
 
 ```python
 import os
@@ -448,19 +424,7 @@ I prefer uploading the notebook to PSC Bridges2 storage ($PROJECT directory) and
 
 > **Note**: Replace `{hostname}`, `{port}` and `{token}` with your actual values from the Jupyter output.
 
-#### Step 3: Authenticate Kaggle
-
-In order to use the Kaggle’s public API, you must first authenticate using an API token. Go to the 'Account' tab of your user profile and select 'Create New Token'. This will trigger the download of kaggle.json, a file containing your API credentials.
-
-- `TODO`: Set your kaggle username and api key here based on the API credentials listed in the kaggle.json
-
-```python
-import os
-os.environ["KAGGLE_USERNAME"] = "your-username"
-os.environ["KAGGLE_KEY"] = "your-key"
-```
-
-#### Step 4: Get Data
+#### Step 3: Get Data
 
 - `NOTE`: This will download and unzip data for both `HW4P1` and `HW4P2`
 - `NOTE`: We are using `$LOCAL`: the scratch storage on local disk on the node running a job to store out data.
@@ -476,7 +440,7 @@ os.environ["KAGGLE_KEY"] = "your-key"
 !du -h --max-depth=2 $LOCAL/hw4_data
 ```
 
-#### Step 5: Move to Handout Directory
+#### Step 4: Move to Handout Directory
 
 Depending on the way you are running your notebook, you may or may not need to run this cell. As long as you are within the handout directory for the library imports to work!
 
@@ -503,11 +467,4 @@ If everything was done correctly, You should see atleast the following files in 
 └── hw4_data_subset/
 ```
 
-# Internal TODO:
-
-- [ ] Remove all credentials from the handout
-- [ ] Remove Training Strategies 2 and 3 from `HW4P2_nb.ipynb`
-
 ---
-
-Developed by: Puru Samal
