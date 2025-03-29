@@ -8,6 +8,7 @@ class Softmax:
     def __init__(self, dim=-1):
         """
         :param dim: Dimension along which to compute softmax (default: -1, last dimension)
+        DO NOT MODIFY
         """
         self.dim = dim
 
@@ -18,20 +19,20 @@ class Softmax:
         """
         if self.dim > len(Z.shape) or self.dim < -len(Z.shape):
             raise ValueError("Dimension to apply softmax to is greater than the number of dimensions in Z")
-
+        
+        # TODO: Implement forward pass
         # Compute the softmax in a numerically stable way
         # Apply it to the dimension specified by the `dim` parameter
-        # Make sure you do this in a numerically stable way
-        self.A = np.exp(Z - np.max(Z, axis=self.dim, keepdims=True))
-        self.A /= np.sum(self.A, axis=self.dim, keepdims=True) + 1e-8
-        return self.A
+        self.A = NotImplementedError
+        raise NotImplementedError
 
     def backward(self, dLdA):
         """
-        :param dLdA: Gradient of loss wrt post-activation output
-        :return: Gradient of loss with respect to pre-activation input
+        :param dLdA: Gradient of loss wrt output
+        :return: Gradient of loss with respect to activation input
         """
-
+        # TODO: Implement backward pass
+        
         # Get the shape of the input
         shape = self.A.shape
         # Find the dimension along which softmax was applied
@@ -39,28 +40,16 @@ class Softmax:
            
         # Reshape input to 2D
         if len(shape) > 2:
-            # Move target dimension to end and flatten other dimensions
-            self.A = np.moveaxis(self.A, self.dim, -1)
-            dLdA   = np.moveaxis(dLdA, self.dim, -1)
-            # Make sure to store the shape post moving axis and pre-reshaping
-            # so we can restore the original shape after computing gradients    
-            shape  = self.A.shape
-            self.A = self.A.reshape(-1, C)
-            dLdA   = dLdA.reshape(-1, C)
-
-        # Compute gradients
-        diag_A  = np.einsum('ij,jk->ijk', self.A, np.eye(C))
-        outer_A = np.einsum('ij,ik->ijk', self.A, self.A)
-        J       = diag_A - outer_A
-        dLdZ    = np.einsum('ij,ijk->ik', dLdA, J)
+            self.A = NotImplementedError
+            dLdA = NotImplementedError
 
         # Reshape back to original dimensions if necessary
         if len(shape) > 2:
             # Restore shapes to original
-            self.A = np.moveaxis(self.A.reshape(shape), -1, self.dim)
-            dLdZ = np.moveaxis(dLdZ.reshape(shape), -1, self.dim)
+            self.A = NotImplementedError
+            dLdZ = NotImplementedError
 
-        return dLdZ
+        raise NotImplementedError
  
 
     
