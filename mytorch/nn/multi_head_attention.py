@@ -155,9 +155,9 @@ class MultiHeadAttention:
         :param x: (N, L, embed_dim)
         :return: (N, num_heads, L, embed_dim // num_heads)
         """
-        # Reshape: (N, L, embed_dim) -> (N, num_heads, L, embed_dim // num_heads)
+        # Reshape: (N, L, embed_dim) -> (N, L, num_heads, embed_dim // num_heads)
         x = x.reshape(x.shape[0], x.shape[1], self.num_heads, -1)
-        # Transpose: (N, num_heads, L, embed_dim // num_heads) -> (N, L, num_heads, embed_dim // num_heads)
+        # Transpose: (N, L, num_heads, embed_dim // num_heads) -> (N, num_heads, L, embed_dim // num_heads)
         x = x.transpose(0, 2, 1, 3)
         # Return x
         return x
