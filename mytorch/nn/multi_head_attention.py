@@ -160,10 +160,10 @@ class MultiHeadAttention:
         """
         # TODO: Implement split heads
 
-        # Reshape: (N, L, embed_dim) -> (N, num_heads, L, embed_dim // num_heads)
+        # Reshape: (N, L, embed_dim) -> (N, L, num_heads, embed_dim // num_heads)
         x = NotImplementedError
         
-        # Transpose: (N, num_heads, L, embed_dim // num_heads) -> (N, L, num_heads, embed_dim // num_heads)
+        # Transpose: (N, L, num_heads, embed_dim // num_heads) -> (N, num_heads, L, embed_dim // num_heads)
         x = NotImplementedError
         
         # Return x
