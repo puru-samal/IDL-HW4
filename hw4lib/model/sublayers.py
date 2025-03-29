@@ -40,17 +40,18 @@ class SelfAttentionLayer(nn.Module):
             dropout (float): The dropout rate.
         '''
         super().__init__()
+        # TODO: Implement __init__
+        
         # TODO: Initialize the multi-head attention mechanism (use nn.MultiheadAttention)
-        self.mha        = nn.MultiheadAttention(
-            embed_dim   = d_model,
-            num_heads   = num_heads,
-            dropout     = dropout,
-            batch_first = True
-        )
+        self.mha = NotImplementedError
+        
         # TODO: Initialize the normalization layer (use nn.LayerNorm)
-        self.norm    = nn.LayerNorm(d_model)
+        self.norm = NotImplementedError
+        
         # TODO: Initialize the dropout layer
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = NotImplementedError
+        raise NotImplementedError # Remove once implemented
+
 
     def forward(self, x: torch.Tensor, key_padding_mask: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         '''
@@ -64,26 +65,17 @@ class SelfAttentionLayer(nn.Module):
             x (torch.Tensor): The output tensor. shape: (batch_size, seq_len, d_model)
             mha_attn_weights (torch.Tensor): The attention weights. shape: (batch_size, seq_len, seq_len)   
         '''
-        # TODO: Create a residual connection  
-        residual = x
-        # TODO: Apply pre-normalization
-        x = self.norm(x)
-        # TODO: Self-attention with with dropout (weights need to be stored)
+        # TODO: Implement forward: Follow the figure in the writeup
+        
+        # TODO: Self-attention
         # Be sure to use the correct arguments for the multi-head attention layer
         # Set need_weights to True and average_attn_weights to True so we can get the attention weights 
-        x, mha_attn_weights = self.mha(
-            query                = x,
-            key                  = x,
-            value                = x,
-            key_padding_mask     = key_padding_mask,
-            need_weights         = True,
-            attn_mask            = attn_mask,
-            average_attn_weights = True,
-        )
-        # TODO: Add residual connection with dropout
-        x = residual + self.dropout(x)
+        x, mha_attn_weights = NotImplementedError, NotImplementedError
+        
+        # NOTE: For some regularization you can apply dropout and then add residual connection
+        
         # TODO: Return the output tensor and attention weights
-        return x, mha_attn_weights   
+        raise NotImplementedError # Remove once implemented
     
 ## -------------------------------------------------------------------------------------------------  
 class CrossAttentionLayer(nn.Module):
@@ -111,17 +103,18 @@ class CrossAttentionLayer(nn.Module):
             dropout (float): The dropout rate.
         '''
         super().__init__()
+        # TODO: Implement __init__
+        
         # TODO: Initialize the multi-head attention mechanism (use nn.MultiheadAttention)
-        self.mha         = nn.MultiheadAttention(
-            embed_dim    = d_model,
-            num_heads    = num_heads,
-            dropout      = dropout,
-            batch_first  = True
-        )   
+        self.mha = NotImplementedError
+        
         # TODO: Initialize the normalization layer (use nn.LayerNorm)
-        self.norm        = nn.LayerNorm(d_model)
+        self.norm = NotImplementedError
+        
         # TODO: Initialize the dropout layer
-        self.dropout     = nn.Dropout(dropout)
+        self.dropout = NotImplementedError
+        
+        raise NotImplementedError # Remove once implemented
 
     def forward(self, x: torch.Tensor, y: torch.Tensor, key_padding_mask: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         '''
@@ -136,26 +129,17 @@ class CrossAttentionLayer(nn.Module):
             x (torch.Tensor): The output tensor. shape: (batch_size, seq_len, d_model)
             mha_attn_weights (torch.Tensor): The attention weights. shape: (batch_size, seq_len, seq_len)   
         '''
-        # TODO: Create a residual connection  
-        residual = x
-        # TODO: Apply pre-normalization
-        x = self.norm(x)
-        # TODO: Cross-attention with dropout (weights need to be stored)
+        # TODO: Implement forward: Follow the figure in the writeup
+
+        # TODO: Cross-attention
         # Be sure to use the correct arguments for the multi-head attention layer
         # Set need_weights to True and average_attn_weights to True so we can get the attention weights 
-        x, mha_attn_weights = self.mha(
-            query                = x,
-            key                  = y,
-            value                = y,
-            key_padding_mask     = key_padding_mask,
-            need_weights         = True,
-            attn_mask            = attn_mask,
-            average_attn_weights = True,
-        )
-        # TODO: Add residual connection with dropout
-        x = residual + self.dropout(x)
+        x, mha_attn_weights = NotImplementedError, NotImplementedError
+        
+        # NOTE: For some regularization you can apply dropout and then add residual connection
+        
         # TODO: Return the output tensor and attention weights
-        return x, mha_attn_weights    
+        raise NotImplementedError # Remove once implemented
     
 ## -------------------------------------------------------------------------------------------------  
 class FeedForwardLayer(nn.Module):
@@ -187,17 +171,18 @@ class FeedForwardLayer(nn.Module):
             dropout (float): The dropout rate.
         '''
         super().__init__()
+        # TODO: Implement __init__
+
         # TODO: Initialize the feed-forward network (use nn.Sequential)
-        self.ffn = nn.Sequential(
-            nn.Linear(d_model, d_ff),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(d_ff, d_model)
-        )
+        # See writeup for what layers to use
+        self.ffn = NotImplementedError
+        
         # TODO: Initialize the normalization layer
-        self.norm = nn.LayerNorm(d_model)
+        self.norm = NotImplementedError
+        
         # TODO: Initialize the dropout layer
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = NotImplementedError
+        raise NotImplementedError # Remove once implemented
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         '''
@@ -208,14 +193,12 @@ class FeedForwardLayer(nn.Module):
         Returns:
             x (torch.Tensor): The output tensor. shape: (batch_size, seq_len, d_model)
         ''' 
-        # TODO: Create a residual connection  
-        residual = x
-        # TODO: Apply pre-normalization
-        x = self.norm(x)
-        # TODO: Apply feed-forward network with dropout
-        x = self.dropout(self.ffn(x))
-        # TODO: Add residual connection
-        x = residual + x
+        # TODO: Implement forward: Follow the figure in the writeup
+
+        # NOTE: For some regularization you can apply dropout to the output of the feed-forward network before adding the residual connection
+        
+        x = NotImplementedError
+        
         # TODO: Return the output tensor
-        return x
+        raise NotImplementedError # Remove once implemented
     

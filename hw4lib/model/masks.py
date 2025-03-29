@@ -25,30 +25,8 @@ def PadMask(padded_input, input_lengths):
             - padding positions are marked with True 
             - non-padding positions are marked with False.
     """
-    # Get the number of sequences (batch size) and sequence length from input shape
-    # Shape is (N, T, ...) where N is batch size and T is sequence length
-    N, T = padded_input.shape[:2]
-
-    # Create position indices tensor [0, 1, 2, ..., T-1] on same device as input
-    # Shape: (T,)
-    positions_1d = torch.arange(T, device=padded_input.device)
-
-    # Add batch dimension and expand to match batch size
-    # [None, :] adds dimension to get shape (1, T)
-    # expand(N, -1) repeats to get shape (N, T) 
-    positions = positions_1d[None, :].expand(N, -1)
-
-    # Create padding mask by comparing positions with sequence lengths
-    # positions has shape (N, T)
-    # input_lengths[:, None] has shape (N, 1) for broadcasting
-    # True indicates padding positions (where position >= length)
-    # False indicates valid positions (where position < length)
-    mask = positions >= input_lengths[:, None]
-
-    # Return boolean mask of shape (N, T)
-    # True = padding position that should be masked
-    # False = valid position that should not be masked
-    return mask
+    # TODO: Implement PadMask
+    raise NotImplementedError # Remove once implemented
 
 ''' 
 TODO: Implement this function.
@@ -73,22 +51,6 @@ def CausalMask(padded_input):
             - non-causal positions (don't attend to) are marked with True 
             - causal positions (can attend to) are marked with False.
     """
-    # Get sequence length from input shape
-    T = padded_input.shape[1]
-    
-    # Create a T x T matrix of ones
-    # This will be used as the base for creating the lower triangular matrix
-    base_matrix = torch.ones(T, T, device=padded_input.device)
-    
-    # Create lower triangular matrix using tril
-    # True values will be in lower triangle (including diagonal)
-    # This represents positions each token can attend to
-    causal_mask = torch.tril(base_matrix).bool()
-    
-    # Invert the mask so True values represent positions to mask out
-    # i.e. positions each token should NOT attend to
-    # This matches the convention where True = "don't attend"
-    attn_mask = ~causal_mask
-    
-    return attn_mask
+    # TODO: Implement CausalMask
+    raise NotImplementedError # Remove once implemented
 

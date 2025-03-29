@@ -37,7 +37,7 @@ Implementation Steps for Each Layer:
 ## -------------------------------------------------------------------------------------------------      
 class SelfAttentionDecoderLayer(nn.Module):
     '''
-    Pre-LN Decoder Layer without the cross-attention mechanism.
+    Pre-LN Decoder Layer with masked self-attention and feed-forward sublayers.
     Used in the decoder-only Transformer architecture.  
     '''
     def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float = 0.1):
@@ -50,9 +50,12 @@ class SelfAttentionDecoderLayer(nn.Module):
             dropout (float): The dropout rate.
         ''' 
         super().__init__()
+        # TODO: Implement __init__
+       
         # TODO: Initialize the sublayers      
-        self.self_attn = SelfAttentionLayer(d_model, num_heads, dropout)
-        self.ffn = FeedForwardLayer(d_model, d_ff, dropout)
+        self.self_attn = NotImplementedError # Masked self-attention layer
+        self.ffn = NotImplementedError # Feed-forward network
+        raise NotImplementedError # Remove once implemented
 
     def forward(self, x: torch.Tensor, key_padding_mask: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         '''
@@ -66,17 +69,17 @@ class SelfAttentionDecoderLayer(nn.Module):
             x (torch.Tensor): The output tensor. shape: (batch_size, seq_len, num_classes)
             mha_attn_weights (torch.Tensor): The attention weights. shape: (batch_size, seq_len, seq_len)   
         '''
-        # TODO: Apply masked self-attention
-        x, mha_attn_weights = self.self_attn(x, key_padding_mask, attn_mask)
-        # TODO: Apply feed-forward network
-        x = self.ffn(x)
+        # TODO: Implement forward: Follow the figure in the writeup
+
+        x, mha_attn_weights = NotImplementedError, NotImplementedError
+        
         # TODO: Return the output tensor and attention weights
-        return x, mha_attn_weights  
+        raise NotImplementedError # Remove once implemented
 
 ## -------------------------------------------------------------------------------------------------    
 class CrossAttentionDecoderLayer(nn.Module):
     '''
-    Pre-LN Decoder Layer with the self-attention and cross-attention mechanisms.
+    Pre-LN Decoder Layer with masked self-attention, cross-attention, and feed-forward sublayers.
     Used in the encoder-decoder Transformer architecture.
     '''
     def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float = 0.1):
@@ -89,10 +92,13 @@ class CrossAttentionDecoderLayer(nn.Module):
             dropout (float): The dropout rate.
         '''
         super().__init__()
+        # TODO: Implement __init__
+
         # TODO: Initialize the sublayers  
-        self.self_attn  = SelfAttentionLayer(d_model, num_heads, dropout)
-        self.cross_attn = CrossAttentionLayer(d_model, num_heads, dropout)
-        self.ffn        = FeedForwardLayer(d_model, d_ff, dropout)
+        self.self_attn  = NotImplementedError # Masked self-attention layer
+        self.cross_attn = NotImplementedError # Cross-attention layer
+        self.ffn        = NotImplementedError # Feed-forward network
+        raise NotImplementedError # Remove once implemented
 
     def forward(self, x: torch.Tensor, enc_output: torch.Tensor, dec_key_padding_mask: Optional[torch.Tensor] = None, enc_key_padding_mask: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         '''
@@ -108,12 +114,11 @@ class CrossAttentionDecoderLayer(nn.Module):
             self_attn_weights (torch.Tensor): The attention weights. shape: (batch_size, seq_len, seq_len)   
             cross_attn_weights (torch.Tensor): The attention weights. shape: (batch_size, seq_len, seq_len)    
         '''
-        # TODO: Apply masked self-attention  
-        x, self_attn_weights  = self.self_attn(x, dec_key_padding_mask, attn_mask)
-        # TODO: Apply cross-attention
-        x, cross_attn_weights = self.cross_attn(x, enc_output, enc_key_padding_mask)
-        # TODO: Apply feed-forward network
-        x = self.ffn(x)
+        # TODO: Implement forward: Follow the figure in the writeup
+
+        x, self_attn_weights  = NotImplementedError, NotImplementedError
+        x, cross_attn_weights = NotImplementedError, NotImplementedError
+
         # TODO: Return the output tensor and attention weights    
-        return x, self_attn_weights, cross_attn_weights  
+        raise NotImplementedError # Remove once implemented
 ## -------------------------------------------------------------------------------------------------    
