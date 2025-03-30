@@ -1,0 +1,1 @@
+tar -cvf IDL-HW4.tar --exclude='*.ipynb' --exclude=".git" --exclude="*.yaml" --exclude='**/__pycache__' --exclude="*.DS_Store" --exclude="*.sh" IDL-HW4
