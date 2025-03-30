@@ -12,7 +12,7 @@ class ScaledDotProductAttention:
         # Initialize your softmax layer
         # What dimension should you pass to the softmax constructor?
         self.softmax = Softmax(dim=-1)
-        self.eps = 1e-4 # DO NOT MODIFY
+        self.eps = 1e10 # DO NOT MODIFY
     
     def forward(self, Q, K, V, mask=None):
         """
