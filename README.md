@@ -123,7 +123,8 @@ tests/
 
 Follow the setup instructions based on your preferred environment!
 
-### Local
+<details>
+<summary>Local</summary>
 
 One of our key goals in designing this assignment is to allow you to complete most of the preliminary implementation work locally.  
 We highly recommend that you **pass all tests locally** using the provided `hw4_data_subset` before moving to a GPU runtime.  
@@ -169,7 +170,10 @@ If everything was done correctly, You should see atleast the following files in 
 └── hw4_data_subset/
 ```
 
-### Colab
+</details>
+
+<details>
+<summary>Colab</summary>
 
 #### Step 1: Get your handout
 
@@ -256,7 +260,10 @@ If everything was done correctly, You should see atleast the following files in 
 └── hw4_data_subset/
 ```
 
-### Kaggle
+</details>
+
+<details>
+<summary>Kaggle</summary>
 
 While it is possible to run the notebook on Kaggle, we would recommend against it. This assignment is more resource intensive and may run slower on Kaggle.
 
@@ -345,7 +352,10 @@ If everything was done correctly, You should see atleast the following files in 
 └── hw4_data_subset/
 ```
 
-### PSC
+</details>
+
+<details>
+<summary>PSC</summary>
 
 #### Step 1: Get your handout
 
@@ -502,6 +512,8 @@ If everything was done correctly, You should see atleast the following files in 
 ├── tests/
 └── hw4_data_subset/
 ```
+
+</details>
 
 # Internal TODO:
 
