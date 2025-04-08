@@ -56,7 +56,7 @@ For `HW4P1` and `HW4P2`, you will incrementally implement components of `hw4lib`
 - **HW4P1**: A _Decoder-only Transformer_ for causal language modeling.
 - **HW4P2**: An _Encoder-Decoder Transformer_ for end-to-end speech recognition.
 
-Many of the components you implement will be reusable across both parts, reinforcing modular design and efficient implementation. You should see the following files in the `hw4lib/` directory (`__init__.py`'s are not shown):
+Many of the components you implement will be reusable across both parts, reinforcing modular design and efficient implementation. You should see the following files in the `hw4lib/` directory (`**init**.py's are not shown):
 
 ```
 hw4lib/
@@ -86,7 +86,7 @@ hw4lib/
 
 ### MyTorch Library Components (`mytorch/`)
 
-In `HW4P1` and `HW4P2`, you will build and train Transformer models using PyTorch’s `nn.MultiHeadAttention`. To deepen your understanding of its internals, you will also implement a custom `MultiHeadAttention` module from scratch as part of your `mytorch` library, designed to closely match the PyTorch interface. You should see the following files in the `mytorch/` directory:
+In `HW4P1` and `HW4P2`, you will build and train Transformer models using PyTorch's `nn.MultiHeadAttention`. To deepen your understanding of its internals, you will also implement a custom `MultiHeadAttention` module from scratch as part of your `mytorch` library, designed to closely match the PyTorch interface. You should see the following files in the `mytorch/` directory:
 
 ```
 
@@ -153,7 +153,7 @@ pip install --no-cache-dir --ignore-installed -r requirements.txt
 This can be achieved by:
 
 1. Physically moving the notebook into the handout directory.
-2. Changing the notebook’s current working directory to the handout directory using the os.chdir() function.
+2. Changing the notebook's current working directory to the handout directory using the os.chdir() function.
 
 #### Step 5: Open the notebook and select the newly created environment from the kernel selector.
 
@@ -209,7 +209,7 @@ os.kill(os.getpid(), 9)
 
 #### Step 3: Authenticate Kaggle
 
-In order to use the Kaggle’s public API, you must first authenticate using an API token. Go to the 'Account' tab of your user profile and select 'Create New Token'. This will trigger the download of kaggle.json, a file containing your API credentials.
+In order to use the Kaggle's public API, you must first authenticate using an API token. Go to the 'Account' tab of your user profile and select 'Create New Token'. This will trigger the download of kaggle.json, a file containing your API credentials.
 
 - `TODO`: Set your kaggle username and api key here based on the API credentials listed in the kaggle.json
 
@@ -290,7 +290,7 @@ Simply set the `Environment` setting in the notebook to `Always use latest envir
 
 #### Step 3: Authenticate Kaggle
 
-In order to use the Kaggle’s public API, you must first authenticate using an API token. Go to the 'Account' tab of your user profile and select 'Create New Token'. This will trigger the download of kaggle.json, a file containing your API credentials.
+In order to use the Kaggle's public API, you must first authenticate using an API token. Go to the 'Account' tab of your user profile and select 'Create New Token'. This will trigger the download of kaggle.json, a file containing your API credentials.
 
 - `TODO`: Set your kaggle username and api key here based on the API credentials listed in the kaggle.json
 
@@ -450,7 +450,7 @@ I prefer uploading the notebook to PSC Bridges2 storage ($PROJECT directory) and
 
 #### Step 3: Authenticate Kaggle
 
-In order to use the Kaggle’s public API, you must first authenticate using an API token. Go to the 'Account' tab of your user profile and select 'Create New Token'. This will trigger the download of kaggle.json, a file containing your API credentials.
+In order to use the Kaggle's public API, you must first authenticate using an API token. Go to the 'Account' tab of your user profile and select 'Create New Token'. This will trigger the download of kaggle.json, a file containing your API credentials.
 
 - `TODO`: Set your kaggle username and api key here based on the API credentials listed in the kaggle.json
 
@@ -508,6 +508,90 @@ If everything was done correctly, You should see atleast the following files in 
 - [ ] Remove `tests/test_hw4p1.py` from the handout
 - [ ] Remove all credentials from the handout
 - [ ] Remove Training Strategies 2 and 3 from `HW4P2_nb.ipynb`
+
+# IDL-HW4 Library Documentation
+
+This library provides the core components for implementing transformer-based language models and automatic speech recognition systems. The library is organized into several key modules:
+
+## Directory Structure
+
+```
+hw4lib/
+├── data/                    # Data handling and preprocessing
+├── model/                   # Model architectures and components
+├── decoding/               # Sequence generation and decoding
+├── trainers/               # Training loops and utilities
+└── utils/                  # Helper functions and utilities
+```
+
+## Module Documentation
+
+### Data Module (`hw4lib/data/`)
+
+- `tokenizer.py`: Implements the H4Tokenizer class for text tokenization with support for different token types (char, 1k, 5k, 10k)
+- `lm_dataset.py`: Language model dataset implementation for text data
+- `asr_dataset.py`: Automatic speech recognition dataset implementation
+- `verify_dataloader.py`: Utilities for verifying dataloader functionality
+- `tokenizer_jsons/`: Contains pre-trained tokenizer configurations
+
+### Model Module (`hw4lib/model/`)
+
+- `transformers.py`: Core transformer model implementations
+- `encoder_layers.py`: Encoder layer implementations
+- `decoder_layers.py`: Decoder layer implementations
+- `sublayers.py`: Transformer sublayer components (self-attention, feedforward)
+- `masks.py`: Implementation of attention masks (causal, padding)
+- `positional_encoding.py`: Positional encoding implementation
+- `speech_embedding.py`: Speech feature embedding implementations
+
+### Decoding Module (`hw4lib/decoding/`)
+
+- `sequence_generator.py`: Implements sequence generation strategies (greedy, beam search)
+
+### Trainers Module (`hw4lib/trainers/`)
+
+- `base_trainer.py`: Base trainer class with common training functionality
+- `lm_trainer.py`: Language model specific trainer implementation
+- `asr_trainer.py`: Automatic speech recognition trainer implementation with progressive training support
+  - Progressive training gradually increases the sequence length during training
+  - Helps with memory efficiency and training stability
+  - Supports curriculum learning for better convergence
+
+### Utils Module (`hw4lib/utils/`)
+
+- `create_optimizer.py`: Utility functions for creating optimizers
+- `create_lr_scheduler.py`: Utility functions for creating learning rate schedulers
+
+## Key Features
+
+1. **Transformer Architecture**
+
+   - Support for both language models and ASR systems
+   - Configurable model dimensions and number of layers
+   - Efficient attention mechanisms with masking
+
+2. **Data Processing**
+
+   - Flexible tokenization strategies
+   - Support for both text and speech data
+   - Efficient batching and padding
+
+3. **Training**
+
+   - Configurable optimizers and learning rate schedules
+   - Support for gradient accumulation
+   - Wandb integration for experiment tracking
+
+4. **Decoding**
+   - Multiple decoding strategies (greedy, beam search)
+   - Language model fusion strategies:
+     - Shallow fusion: Combines ASR and LM scores during beam search
+   - Support for beam search with configurable beam width
+   - Language model rescoring for improved transcription quality
+
+## Usage
+
+See the example notebooks (`HW4P1_nb.ipynb` and `HW4P2_nb.ipynb`) for detailed usage examples of the library components.
 
 ---
 
