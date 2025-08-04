@@ -1,5 +1,7 @@
 # **HW4 Handout**
 
+This repository was developed and maintained by Puru Samal, as a Teaching Assistant for Carnegie Mellon University's [Introduction to Deep Learning (11-785)](https://deeplearning.cs.cmu.edu/S25/index.html) course.
+
 In this assignment, we are introducing a new format for assignment delivery, designed to enhance your development workflow. The key motivations for this change are:
 
 - **Test Suite Integration**: Your code will be tested in a manner similar to `HWP1's`.
